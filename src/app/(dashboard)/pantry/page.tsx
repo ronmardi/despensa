@@ -15,6 +15,39 @@ interface PantryItem {
   unit: string
 }
 
+// 📌 Función para asignar emojis según el nombre del producto
+function getProductEmoji(name: string): string {
+  const n = name.toLowerCase()
+  if (n.includes('arroz')) return '🍚'
+  if (n.includes('leche')) return '🥛'
+  if (n.includes('pan')) return '🍞'
+  if (n.includes('huevo')) return '🥚'
+  if (n.includes('carne')) return '🥩'
+  if (n.includes('pollo')) return '🍗'
+  if (n.includes('queso')) return '🧀'
+  if (n.includes('tomate')) return '🍅'
+  if (n.includes('cebolla')) return '🧅'
+  if (n.includes('papa')) return '🥔'
+  if (n.includes('manzana')) return '🍎'
+  if (n.includes('platano') || n.includes('banana')) return '🍌'
+  if (n.includes('agua')) return '💧'
+  if (n.includes('jugo')) return '🧃'
+  if (n.includes('cerveza')) return '🍺'
+  if (n.includes('vino')) return '🍷'
+  if (n.includes('cafe') || n.includes('café')) return '☕'
+  if (n.includes('te') || n.includes('té')) return '🍵'
+  if (n.includes('jabon') || n.includes('jabón')) return '🧼'
+  if (n.includes('papel') || n.includes('higienico')) return '🧻'
+  if (n.includes('pasta') || n.includes('fideo')) return '🍝'
+  if (n.includes('galleta')) return '🍪'
+  if (n.includes('chocolate')) return '🍫'
+  if (n.includes('azucar') || n.includes('azúcar') || n.includes('sal')) return '🧂'
+  if (n.includes('pescado') || n.includes('atun') || n.includes('atún')) return '🐟'
+  if (n.includes('yogur') || n.includes('cereal')) return '🥣'
+  if (n.includes('helado')) return '🍨'
+  return '📦' // Emoji por defecto
+}
+
 export default function PantryPage() {
   const supabase = createClient()
   const router = useRouter()
@@ -84,7 +117,6 @@ export default function PantryPage() {
       .update({ current_quantity: newQuantity })
       .eq('id', id)
 
-    // Registrar en Historial
     if (householdId) {
       await supabase.from('activity_logs').insert([{
         household_id: householdId,
@@ -123,14 +155,12 @@ export default function PantryPage() {
 
   return (
     <div className="mx-auto max-w-md p-4 pb-28">
-      {/* Encabezado Principal */}
       <header className="mb-4 mt-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 drop-shadow-sm">Mi Despensa</h1>
           <p className="text-sm text-gray-600">Inventario interactivo</p>
         </div>
 
-        {/* Acciones de Navegación y Salida */}
         <div className="flex items-center gap-1.5">
           <Link 
             href="/history" 
@@ -163,7 +193,6 @@ export default function PantryPage() {
         </div>
       </header>
 
-      {/* Búsqueda y Filtros */}
       {!loading && items.length > 0 && (
         <div className="mb-5 space-y-3">
           <div className="relative">
@@ -206,7 +235,6 @@ export default function PantryPage() {
         </div>
       )}
 
-      {/* Lista de Productos */}
       {loading ? (
         <div className="flex justify-center py-12">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
@@ -246,7 +274,10 @@ export default function PantryPage() {
               >
                 <div className="flex-1 pr-2">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-gray-900">{item.name}</h3>
+                    <h3 className="font-semibold text-gray-900 flex items-center gap-1.5">
+                      <span className="text-xl drop-shadow-sm">{getProductEmoji(item.name)}</span>
+                      {item.name}
+                    </h3>
                     {isLowStock && (
                       <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 border border-amber-500/20">
                         <AlertTriangle size={12} /> Reponer
