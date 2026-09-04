@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Instructs Tailwind v4 to trigger dark: styles using the .dark class */
+@variant dark (&:where(.dark, .dark *));
+
 body {
   background-color: #f8fafc;
   background-image: 
