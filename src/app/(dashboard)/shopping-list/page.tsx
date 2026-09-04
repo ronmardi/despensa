@@ -19,7 +19,6 @@ export default function ShoppingListPage() {
   const supabase = createClient()
   const [items, setItems] = useState<ShoppingItem[]>([])
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
-  // Guardamos la cantidad comprada editable por cada producto
   const [boughtQuantities, setBoughtQuantities] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [purchasing, setPurchasing] = useState(false)
@@ -49,7 +48,6 @@ export default function ShoppingListPage() {
           )
           setItems(needsRestock)
 
-          // Calcula automáticamente la cantidad sugerida a comprar: (Ideal - Actual)
           const initialQuantities: Record<string, number> = {}
           needsRestock.forEach((item) => {
             const diff = item.ideal_quantity - item.current_quantity
@@ -74,7 +72,6 @@ export default function ShoppingListPage() {
     setSelectedItems(newSelected)
   }
 
-  // Modifica la cantidad comprada sin activar el toggle de la tarjeta
   const handleQuantityChange = (id: string, delta: number, e: React.MouseEvent) => {
     e.stopPropagation()
     setBoughtQuantities((prev) => {
@@ -88,7 +85,6 @@ export default function ShoppingListPage() {
     if (selectedItems.size === 0) return
     setPurchasing(true)
 
-    // Suma exactamente la cantidad que el usuario especificó
     const updates = Array.from(selectedItems).map(async (id) => {
       const item = items.find((i) => i.id === id)
       if (!item) return
@@ -104,7 +100,6 @@ export default function ShoppingListPage() {
 
     await Promise.all(updates)
 
-    // Elimina de la lista de compras los items reabastecidos
     setItems((prev) => prev.filter((item) => !selectedItems.has(item.id)))
     setSelectedItems(new Set())
     setPurchasing(false)
@@ -112,7 +107,6 @@ export default function ShoppingListPage() {
 
   return (
     <div className="mx-auto max-w-md p-4 pb-28">
-      {/* Encabezado */}
       <header className="mb-6 mt-4 flex items-center gap-3">
         <Link href="/pantry" className="rounded-full bg-white/50 backdrop-blur-md border border-white/60 p-2 text-gray-700 shadow-sm transition-all hover:bg-white/80">
           <ArrowLeft size={20} />
@@ -125,20 +119,17 @@ export default function ShoppingListPage() {
         </div>
       </header>
 
-      {/* Estado de Carga */}
       {loading ? (
         <div className="flex justify-center py-12">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
         </div>
       ) : items.length === 0 ? (
-        /* Estado Vacío */
         <div className="rounded-3xl bg-white/40 backdrop-blur-lg border border-white/60 p-8 text-center shadow-[0_8px_32px_0_rgba(31,38,135,0.07)]">
           <PartyPopper className="mx-auto mb-3 text-emerald-400" size={48} />
           <h2 className="text-lg font-semibold text-gray-800">¡Surtido completo!</h2>
           <p className="mt-1 text-sm text-gray-600">No hay productos que requieran reposición por ahora.</p>
         </div>
       ) : (
-        /* Lista de Productos */
         <div className="space-y-3">
           {items.map((item) => {
             const isSelected = selectedItems.has(item.id)
@@ -168,22 +159,21 @@ export default function ShoppingListPage() {
                   </div>
                 </div>
 
-                {/* Contador de Cantidad Comprada */}
-                <div className="flex items-center gap-1.5 rounded-xl bg-white/70 border border-white/80 p-1 shadow-sm">
+                <div className="flex items-center gap-1.5 rounded-xl bg-white/70 border border-white/80 p-1 shadow-xs">
                   <button
                     onClick={(e) => handleQuantityChange(item.id, -1, e)}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-gray-700 shadow-xs hover:bg-indigo-50 hover:text-indigo-600 active:scale-90 transition-all"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-gray-700 shadow-xs hover:bg-indigo-50 hover:text-indigo-600 active:scale-90 transition-all cursor-pointer"
                   >
                     <Minus size={14} />
                   </button>
                   
-                  <span className="min-w-[2rem] text-center text-xs font-bold text-gray-800">
+                  <span className="min-w-8 text-center text-xs font-bold text-gray-800">
                     +{qtyToBuy}
                   </span>
 
                   <button
                     onClick={(e) => handleQuantityChange(item.id, 1, e)}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-gray-700 shadow-xs hover:bg-indigo-50 hover:text-indigo-600 active:scale-90 transition-all"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-gray-700 shadow-xs hover:bg-indigo-50 hover:text-indigo-600 active:scale-90 transition-all cursor-pointer"
                   >
                     <Plus size={14} />
                   </button>
@@ -194,13 +184,12 @@ export default function ShoppingListPage() {
         </div>
       )}
 
-      {/* Botón Flotante para Finalizar Compra */}
       {items.length > 0 && (
         <div className="fixed bottom-6 left-0 right-0 mx-auto max-w-md px-4">
           <button 
             onClick={handleCompletePurchase}
             disabled={purchasing || selectedItems.size === 0}
-            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-500 px-4 py-4 font-semibold text-white shadow-xl hover:shadow-2xl hover:from-indigo-600 hover:to-purple-600 disabled:opacity-50 disabled:scale-100 transition-all active:scale-[0.98]"
+            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-indigo-500 to-purple-500 px-4 py-4 font-semibold text-white shadow-xl hover:shadow-2xl hover:from-indigo-600 hover:to-purple-600 disabled:opacity-50 disabled:scale-100 transition-all active:scale-[0.98] cursor-pointer"
           >
             {purchasing ? 'Actualizando despensa...' : `Sumar comprados (${selectedItems.size})`}
           </button>
