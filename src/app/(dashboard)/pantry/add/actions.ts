@@ -1,8 +1,9 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
 
-interface AddProductInput {
+interface AddProductData {
   name: string
   category: string
   quantity: number
@@ -10,69 +11,57 @@ interface AddProductInput {
   minThreshold: number
 }
 
-export async function addProductAction(input: AddProductInput) {
+export async function addProductAction(data: AddProductData) {
   const supabase = await createClient()
-
-  // 1. Obtener usuario autenticado
+  
+  // 1. Obtener el usuario autenticado
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { success: false, error: 'Usuario no autenticado' }
-  }
+  if (!user) return { success: false, error: 'Usuario no autenticado' }
 
-  // 2. Asegurar Perfil (SOLUCIÓN AL ERROR DE DUPLICADO APLICADA AQUÍ)
-  // El 'upsert' inserta el perfil, pero si el 'id' ya existe, simplemente lo ignora sin lanzar error.
-  await supabase
-    .from('profiles')
-    .upsert(
-      { id: user.id, email: user.email },
-      { onConflict: 'id', ignoreDuplicates: true }
-    )
-
-  // 3. Buscar u Obtener Hogar
-  let householdId: string | null = null
-
-  const { data: members } = await supabase
+  // 2. Obtener el hogar al que pertenece el usuario
+  const { data: member } = await supabase
     .from('household_members')
     .select('household_id')
     .eq('user_id', user.id)
+    .single()
 
-  if (members && members.length > 0) {
-    householdId = members[0].household_id
-  } else {
-    // Crear hogar en el servidor
-    const { data: newHousehold, error: createError } = await supabase
-      .from('households')
-      .insert([{ name: 'Mi Despensa', created_by: user.id }])
-      .select('id')
-      .single()
-
-    if (createError || !newHousehold) {
-      return { success: false, error: createError?.message || 'Error al crear el hogar' }
-    }
-
-    await supabase.from('household_members').insert([{
-      household_id: newHousehold.id,
-      user_id: user.id,
-      role: 'admin'
-    }])
-
-    householdId = newHousehold.id
+  if (!member) {
+    return { success: false, error: 'No estás asignado a ningún hogar' }
   }
 
-  // 4. Insertar Producto
-  const { error: insertError } = await supabase.from('items').insert([{
-    household_id: householdId,
-    name: input.name,
-    category: input.category,
-    current_quantity: input.quantity,
-    ideal_quantity: input.quantity,
-    min_threshold: input.minThreshold,
-    unit: input.unit
-  }])
+  const householdId = member.household_id
+  const userEmail = user.email || 'Usuario'
+
+  // 3. Insertar el nuevo producto en la tabla items
+  const { error: insertError } = await supabase
+    .from('items')
+    .insert([{
+      household_id: householdId,
+      name: data.name.trim(),
+      category: data.category,
+      current_quantity: data.quantity,
+      min_threshold: data.minThreshold,
+      ideal_quantity: data.quantity > data.minThreshold ? data.quantity : data.minThreshold + 1,
+      unit: data.unit
+    }])
 
   if (insertError) {
     return { success: false, error: insertError.message }
   }
 
+  // 4. Guardar registro en el Historial de Actividad
+  await supabase
+    .from('activity_logs')
+    .insert([{
+      household_id: householdId,
+      user_email: userEmail,
+      item_name: data.name.trim(),
+      action_type: 'ADD',
+      details: `Agregó por primera vez con cantidad inicial de ${data.quantity} ${data.unit}`
+    }])
+
+  // 5. Refrescar la página de la despensa
+  revalidatePath('/pantry')
+  
   return { success: true }
 }
