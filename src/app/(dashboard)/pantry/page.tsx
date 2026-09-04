@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { Plus, Minus, Package, AlertTriangle, Trash2, ShoppingCart } from 'lucide-react'
+import { Plus, Minus, Package, AlertTriangle, Trash2, ShoppingCart, Users } from 'lucide-react'
 
 interface PantryItem {
   id: string
@@ -45,7 +45,6 @@ export default function PantryPage() {
     loadPantryItems()
   }, [supabase])
 
-  // Función para actualizar la cantidad (+1 / -1)
   const handleQuantityChange = async (id: string, delta: number) => {
     setItems((prevItems) =>
       prevItems.map((item) => {
@@ -68,7 +67,6 @@ export default function PantryPage() {
       .eq('id', id)
   }
 
-  // Función para eliminar un producto
   const handleDeleteItem = async (id: string) => {
     if (!confirm('¿Seguro que quieres eliminar este producto?')) return
 
@@ -78,19 +76,29 @@ export default function PantryPage() {
 
   return (
     <div className="mx-auto max-w-md p-4 pb-28">
-      {/* Encabezado con Botón de Carrito */}
+      {/* Encabezado con Botones de Navegación */}
       <header className="mb-6 mt-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 drop-shadow-sm">Mi Despensa</h1>
           <p className="text-sm text-gray-600">Inventario interactivo</p>
         </div>
 
-        <Link 
-          href="/shopping-list" 
-          className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/50 backdrop-blur-md border border-white/60 text-indigo-600 shadow-sm transition-all hover:bg-white/80 active:scale-95"
-        >
-          <ShoppingCart size={22} />
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link 
+            href="/household" 
+            className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/50 backdrop-blur-md border border-white/60 text-gray-700 shadow-sm transition-all hover:bg-white/80 active:scale-95"
+            title="Gestión del Hogar"
+          >
+            <Users size={20} />
+          </Link>
+          <Link 
+            href="/shopping-list" 
+            className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/50 backdrop-blur-md border border-white/60 text-indigo-600 shadow-sm transition-all hover:bg-white/80 active:scale-95"
+            title="Lista de Compras"
+          >
+            <ShoppingCart size={20} />
+          </Link>
+        </div>
       </header>
 
       {/* Estado de Carga */}
