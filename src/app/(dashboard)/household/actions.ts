@@ -3,10 +3,50 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
+export async function getHouseholdData() {
+  const supabase = await createClient()
+
+  // 1. Obtener el usuario autenticado
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  // 2. Buscar la membresía del usuario
+  const { data: member } = await supabase
+    .from('household_members')
+    .select('household_id, role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member) return null
+
+  // 3. Obtener los detalles del hogar
+  const { data: household } = await supabase
+    .from('households')
+    .select('*')
+    .eq('id', member.household_id)
+    .single()
+
+  if (!household) return null
+
+  // 4. Obtener todos los miembros vinculados
+  const { data: members } = await supabase
+    .from('household_members')
+    .select('*')
+    .eq('household_id', member.household_id)
+
+  return {
+    household,
+    members: members || [],
+    userRole: member.role,
+    currentUserId: user.id,
+    userEmail: user.email,
+  }
+}
+
 export async function joinHouseholdAction(inviteCode: string) {
   const supabase = await createClient()
 
-  // 1. Obtener y verificar el usuario autenticado
+  // 1. Verificar sesión activa
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) {
     return { success: false, error: 'Sesión no válida. Vuelve a iniciar sesión.' }
@@ -14,7 +54,7 @@ export async function joinHouseholdAction(inviteCode: string) {
 
   const cleanCode = inviteCode.trim().toUpperCase()
 
-  // 2. Buscar el hogar correspondiente al código de invitación
+  // 2. Validar código de invitación
   const { data: household, error: householdError } = await supabase
     .from('households')
     .select('id')
@@ -25,13 +65,13 @@ export async function joinHouseholdAction(inviteCode: string) {
     return { success: false, error: 'El código de invitación no existe o es inválido.' }
   }
 
-  // 3. Eliminar vinculaciones previas del usuario si ya pertenece a otro hogar
+  // 3. Limpiar vinculaciones previas
   await supabase
     .from('household_members')
     .delete()
     .eq('user_id', user.id)
 
-  // 4. Insertar el nuevo registro con el UUID de usuario garantizado
+  // 4. Vincular al nuevo hogar
   const { error: joinError } = await supabase
     .from('household_members')
     .insert([{

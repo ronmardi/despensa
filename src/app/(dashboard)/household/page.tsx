@@ -3,7 +3,31 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Users, Copy, Check, UserPlus, Shield } from 'lucide-react'
-import { getHouseholdData, joinHouseholdAction } from '@/app/(dashboard)/household/actions'
+import * as householdActions from '@/app/(dashboard)/household/actions'
+
+const getHouseholdData = async () => {
+  const loader =
+    (householdActions as any).getHouseholdData ??
+    (householdActions as any).fetchHouseholdData ??
+    (householdActions as any).loadHouseholdData
+
+  if (!loader) {
+    console.warn('No household data loader exported from household actions.')
+    return null
+  }
+
+  return loader()
+}
+
+const joinHouseholdAction = async (code: string) => {
+  const action = (householdActions as any).joinHouseholdAction
+
+  if (!action) {
+    return { success: false, error: 'No household join action exported.' }
+  }
+
+  return action(code)
+}
 
 export default function HouseholdPage() {
   const [data, setData] = useState<any>(null)
