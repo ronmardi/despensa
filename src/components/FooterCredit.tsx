@@ -9,16 +9,10 @@ export function FooterCredit() {
       >
         <span>Desarrollado por</span>
         <div className="flex items-center gap-1.5 font-bold tracking-tight text-gray-900 dark:text-white">
-          <img
-            src="/raccoonlab-logo.svg"
-            alt="Raccoon Lab"
-            className="h-4 w-auto object-contain filter drop-shadow-xs"
-            onError={(e) => {
-              // Muestra el emoji como respaldo si aún no has subido la imagen a /public
-              e.currentTarget.style.display = 'none'
-            }}
-          />
-          <span>Raccoon Lab</span>
+          <img src="/raccoonlab-logo.png" alt="Raccoon Lab" className="h-4 w-auto object-contain" />
+          <span className="bg-linear-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent font-extrabold">
+            Raccoon Lab
+          </span>
         </div>
       </a>
     </footer>
