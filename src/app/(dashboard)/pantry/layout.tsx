@@ -2,11 +2,11 @@ import { Toaster } from 'sonner'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100">
+    <div className="min-h-screen transition-colors">
       {children}
       <Toaster 
         position="bottom-center" 
-        theme="dark" 
+        theme="system" 
         toastOptions={{
           style: {
             background: 'rgba(30, 41, 59, 0.85)',
