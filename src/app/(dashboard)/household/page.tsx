@@ -17,12 +17,12 @@ export default function HouseholdPage() {
   const [loading, setLoading] = useState(true)
   const [household, setHousehold] = useState<Household | null>(null)
   const [membersCount, setMembersCount] = useState<number>(1)
-  const [copied, setCopied] = useState(false)
+  const [copiedLink, setCopiedLink] = useState(false)
+  const [copiedCode, setCopiedCode] = useState(false)
   const [showQr, setShowQr] = useState(false)
   const [joinCode, setJoinCode] = useState('')
   const [joining, setJoining] = useState(false)
 
-  // Estado para la edición del nombre del hogar
   const [isEditingName, setIsEditingName] = useState(false)
   const [newHouseholdName, setNewHouseholdName] = useState('')
   const [updatingName, setUpdatingName] = useState(false)
@@ -74,13 +74,16 @@ export default function HouseholdPage() {
     setUpdatingName(true)
     const trimmed = newHouseholdName.trim()
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('households')
       .update({ name: trimmed })
       .eq('id', household.id)
+      .select()
 
     if (error) {
       toast.error('Error al cambiar el nombre', { description: error.message })
+    } else if (!data || data.length === 0) {
+      toast.error('No se guardó el cambio: revisa las políticas RLS en Supabase')
     } else {
       setHousehold({ ...household, name: trimmed })
       setIsEditingName(false)
@@ -92,9 +95,17 @@ export default function HouseholdPage() {
   const handleCopyLink = () => {
     if (!inviteUrl) return
     navigator.clipboard.writeText(inviteUrl)
-    setCopied(true)
+    setCopiedLink(true)
     toast.success('Enlace de invitación copiado')
-    setTimeout(() => setCopied(false), 2000)
+    setTimeout(() => setCopiedLink(false), 2000)
+  }
+
+  const handleCopyCode = () => {
+    if (!household) return
+    navigator.clipboard.writeText(household.invite_code)
+    setCopiedCode(true)
+    toast.success('Código de invitación copiado')
+    setTimeout(() => setCopiedCode(false), 2000)
   }
 
   const handleShareLink = async () => {
@@ -173,7 +184,7 @@ export default function HouseholdPage() {
         </div>
       ) : household ? (
         <div className="space-y-5">
-          {/* Tarjeta del Hogar con Nombre Editable */}
+          {/* Tarjeta del Hogar */}
           <div className={`rounded-3xl p-6 text-center ${glass3dClass}`}>
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
               <Users size={28} />
@@ -232,7 +243,7 @@ export default function HouseholdPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white text-sm">Invitar integrantes</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Envía el enlace o muestra el código QR</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Envía el enlace, código o muestra el QR</p>
               </div>
               <button
                 onClick={() => setShowQr(!showQr)}
@@ -254,7 +265,28 @@ export default function HouseholdPage() {
               </div>
             )}
 
-            <div className="space-y-2">
+            {/* Código de Invitación Texto */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Tu código de invitación
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 rounded-xl bg-slate-200/50 dark:bg-slate-950/50 px-3.5 py-2.5 text-sm font-mono font-bold tracking-widest text-indigo-600 dark:text-indigo-400 border border-black/5 dark:border-white/5">
+                  {household.invite_code}
+                </div>
+                <button
+                  onClick={handleCopyCode}
+                  className="flex items-center justify-center gap-1.5 rounded-xl bg-white/80 dark:bg-slate-800 border border-black/10 dark:border-white/10 px-3.5 py-2.5 text-xs font-bold text-gray-800 dark:text-gray-200 shadow-xs active:scale-95 transition-all cursor-pointer"
+                  title="Copiar código"
+                >
+                  {copiedCode ? <Check size={15} className="text-green-500" /> : <Copy size={15} />}
+                  {copiedCode ? 'Copiado' : 'Código'}
+                </button>
+              </div>
+            </div>
+
+            {/* Enlace Directo */}
+            <div className="space-y-1.5">
               <label className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Enlace directo de invitación
               </label>
@@ -263,6 +295,7 @@ export default function HouseholdPage() {
               </div>
             </div>
 
+            {/* Botones de Compartir y Copiar Enlace */}
             <div className="flex gap-2 pt-1">
               <button
                 onClick={handleShareLink}
@@ -276,12 +309,13 @@ export default function HouseholdPage() {
                 onClick={handleCopyLink}
                 className="flex items-center justify-center gap-1.5 rounded-xl bg-white/80 dark:bg-slate-800 border border-black/10 dark:border-white/10 px-4 py-2.5 text-xs font-bold text-gray-800 dark:text-gray-200 shadow-xs active:scale-95 transition-all cursor-pointer"
               >
-                {copied ? <Check size={15} className="text-green-500" /> : <Copy size={15} />}
-                {copied ? 'Copiado' : 'Copiar'}
+                {copiedLink ? <Check size={15} className="text-green-500" /> : <Copy size={15} />}
+                {copiedLink ? 'Copiado' : 'Enlace'}
               </button>
             </div>
           </div>
 
+          {/* Unirse a otro hogar */}
           <div className={`rounded-3xl p-5 ${glass3dClass}`}>
             <h3 className="font-bold text-gray-900 dark:text-white text-sm mb-1">¿Tienes un código manual?</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Ingresa un código de 6 caracteres para unirte a otro hogar</p>
@@ -289,7 +323,7 @@ export default function HouseholdPage() {
             <form onSubmit={handleJoinHousehold} className="flex gap-2">
               <input
                 type="text"
-                placeholder="Ej. DCCFDC"
+                placeholder="Ej. X8K9P2"
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value)}
                 className="flex-1 rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 px-3.5 py-2 text-xs font-mono text-gray-900 dark:text-white uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
@@ -313,7 +347,7 @@ export default function HouseholdPage() {
           <form onSubmit={handleJoinHousehold} className="space-y-3">
             <input
               type="text"
-              placeholder="Código de invitación (Ej: DCCFDC)"
+              placeholder="Código de invitación (Ej: X8K9P2)"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value)}
               className="w-full rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 px-4 py-3 text-sm font-mono text-gray-900 dark:text-white uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500/50"

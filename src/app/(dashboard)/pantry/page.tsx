@@ -222,8 +222,8 @@ export default function PantryPage() {
       <header className="mb-6 mt-4 flex items-center justify-between">
         <div>
           {/* AQUÍ ESTÁ EL CAMBIO: Muestra el nombre dinámico del hogar */}
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm truncate max-w-[200px]">
-            {householdName}
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm truncate max-w-50">
+          {householdName}
           </h1>
           <p className="text-xs font-medium text-gray-600 dark:text-gray-300">Inventario interactivo</p>
         </div>
