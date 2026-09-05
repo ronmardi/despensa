@@ -121,8 +121,8 @@ export default function HistoryPage() {
         <div className="relative border-l-2 border-indigo-500/30 ml-4 pl-4 space-y-4">
           {logs.map((log) => (
             <div key={log.id} className="relative">
-              <div className="absolute -left-[25px] top-4 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-white shadow-md">
-                {getActionIcon(log.action)}
+              <div className="absolute -left-6.25 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-white shadow-md">
+              {getActionIcon(log.action)}
               </div>
 
               <div className={`rounded-2xl p-4 transition-all ${glass3dClass}`}>

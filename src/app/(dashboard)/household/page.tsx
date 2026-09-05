@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { ArrowLeft, Users, Copy, Check, QrCode, UserPlus, Loader2, Share2 } from 'lucide-react'
+import { ArrowLeft, Users, Copy, Check, QrCode, UserPlus, Loader2, Share2, Pencil, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Household {
@@ -21,6 +21,11 @@ export default function HouseholdPage() {
   const [showQr, setShowQr] = useState(false)
   const [joinCode, setJoinCode] = useState('')
   const [joining, setJoining] = useState(false)
+
+  // Estado para la edición del nombre del hogar
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [newHouseholdName, setNewHouseholdName] = useState('')
+  const [updatingName, setUpdatingName] = useState(false)
 
   useEffect(() => {
     async function loadHouseholdData() {
@@ -40,7 +45,10 @@ export default function HouseholdPage() {
           .eq('id', memberData.household_id)
           .single()
 
-        if (hh) setHousehold(hh)
+        if (hh) {
+          setHousehold(hh)
+          setNewHouseholdName(hh.name)
+        }
 
         const { data: allMembers } = await supabase
           .from('household_members')
@@ -59,6 +67,28 @@ export default function HouseholdPage() {
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/join?code=${household.invite_code}` 
     : ''
 
+  const handleUpdateName = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!household || !newHouseholdName.trim()) return
+
+    setUpdatingName(true)
+    const trimmed = newHouseholdName.trim()
+
+    const { error } = await supabase
+      .from('households')
+      .update({ name: trimmed })
+      .eq('id', household.id)
+
+    if (error) {
+      toast.error('Error al cambiar el nombre', { description: error.message })
+    } else {
+      setHousehold({ ...household, name: trimmed })
+      setIsEditingName(false)
+      toast.success('Nombre del hogar actualizado')
+    }
+    setUpdatingName(false)
+  }
+
   const handleCopyLink = () => {
     if (!inviteUrl) return
     navigator.clipboard.writeText(inviteUrl)
@@ -74,7 +104,7 @@ export default function HouseholdPage() {
       try {
         await navigator.share({
           title: `Unirte a ${household.name}`,
-          text: `¡Únete a mi hogar "${household.name}" en Mi Despensa para organizar el inventario juntos! 🏠`,
+          text: `¡Únete a "${household.name}" en la app Mi Despensa para organizar el inventario juntos! 🏠`,
           url: inviteUrl,
         })
       } catch (_) {}
@@ -143,16 +173,61 @@ export default function HouseholdPage() {
         </div>
       ) : household ? (
         <div className="space-y-5">
+          {/* Tarjeta del Hogar con Nombre Editable */}
           <div className={`rounded-3xl p-6 text-center ${glass3dClass}`}>
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
               <Users size={28} />
             </div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{household.name}</h2>
+
+            {isEditingName ? (
+              <form onSubmit={handleUpdateName} className="flex items-center justify-center gap-2 mt-2 mb-1">
+                <input
+                  type="text"
+                  value={newHouseholdName}
+                  onChange={(e) => setNewHouseholdName(e.target.value)}
+                  className="rounded-xl bg-white/80 dark:bg-slate-950/80 border border-indigo-500/50 px-3 py-1.5 text-center text-lg font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  placeholder="Ej. Casa Martínez"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  disabled={updatingName}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer active:scale-95"
+                  title="Guardar"
+                >
+                  {updatingName ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditingName(false)
+                    setNewHouseholdName(household.name)
+                  }}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-200 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-300 cursor-pointer active:scale-95"
+                  title="Cancelar"
+                >
+                  <X size={16} />
+                </button>
+              </form>
+            ) : (
+              <div className="flex items-center justify-center gap-2">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">{household.name}</h2>
+                <button
+                  onClick={() => setIsEditingName(true)}
+                  className="p-1.5 text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 rounded-lg hover:bg-indigo-500/10 transition-all cursor-pointer"
+                  title="Cambiar nombre del hogar"
+                >
+                  <Pencil size={15} />
+                </button>
+              </div>
+            )}
+
             <p className="mt-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
               {membersCount} {membersCount === 1 ? 'integrante activo' : 'integrantes activos'}
             </p>
           </div>
 
+          {/* Opciones de Invitación */}
           <div className={`rounded-3xl p-5 space-y-4 ${glass3dClass}`}>
             <div className="flex items-center justify-between">
               <div>
