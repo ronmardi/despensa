@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { ShoppingCart, ArrowLeft, Share2, Check, Circle, Plus, Minus, Loader2 } from 'lucide-react'
-import { ThemeToggle } from '@/components/ThemeToggle'
 import { toast } from 'sonner'
+import { toPng } from 'html-to-image'
 
 interface PantryItem {
   id: string
@@ -39,8 +39,10 @@ function getProductEmoji(name: string): string {
 
 export default function ShoppingListPage() {
   const supabase = createClient()
+  const listRef = useRef<HTMLDivElement>(null)
   const [items, setItems] = useState<PantryItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [sharing, setSharing] = useState(false)
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set())
   const [buyQuantities, setBuyQuantities] = useState<Record<string, number>>({})
 
@@ -66,11 +68,10 @@ export default function ShoppingListPage() {
           const itemsToBuy = pantryItems.filter(item => item.current_quantity <= item.min_threshold)
           setItems(itemsToBuy)
 
-          // Inicializar cantidades a comprar según sugerencia previa
           const initialQuantities: Record<string, number> = {}
           itemsToBuy.forEach(item => {
-            const suggested = Math.max(1, (item.ideal_quantity || item.min_threshold + 1) - item.current_quantity)
-            initialQuantities[item.id] = suggested
+            // CAMBIO: Ahora siempre inicia en 1 por defecto
+            initialQuantities[item.id] = 1
           })
           setBuyQuantities(initialQuantities)
         }
@@ -101,7 +102,7 @@ export default function ShoppingListPage() {
   }
 
   const handleBuyQuantityChange = (e: React.MouseEvent, id: string, delta: number) => {
-    e.stopPropagation() // Evita tachar el producto al hacer clic en los botones + / -
+    e.stopPropagation()
     setBuyQuantities((prev) => {
       const current = prev[id] || 1
       const next = Math.max(1, current + delta)
@@ -109,31 +110,38 @@ export default function ShoppingListPage() {
     })
   }
 
-  const handleShare = () => {
-    if (items.length === 0) {
+  const handleShareImage = async () => {
+    if (!listRef.current || items.length === 0) {
       toast.error('La lista está vacía')
       return
     }
 
-    let text = "🛒 *MI LISTA DE COMPRAS*\n\n"
-    
-    Object.entries(groupedItems).forEach(([category, catItems]) => {
-      text += `📍 *${category.toUpperCase()}*\n`
-      catItems.forEach(item => {
-        const qty = buyQuantities[item.id] || 1
-        text += `  ▫️ ${getProductEmoji(item.name)} ${item.name} (${qty} ${item.unit})\n`
-      })
-      text += "\n"
-    })
+    setSharing(true)
+    toast.info('Generando tarjeta de lista...')
 
-    if (navigator.share) {
-      navigator.share({
-        title: 'Lista de Compras',
-        text: text
-      }).catch((error) => console.log('Error compartiendo:', error))
-    } else {
-      navigator.clipboard.writeText(text)
-      toast.success('Lista copiada al portapapeles', { description: 'Puedes pegarla en WhatsApp' })
+    try {
+      const dataUrl = await toPng(listRef.current, { cacheBust: true, pixelRatio: 2 })
+      const blob = await (await fetch(dataUrl)).blob()
+      const file = new File([blob], 'lista-de-compras.png', { type: 'image/png' })
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Mi Lista de Compras',
+          text: 'Lista de compras generada en Mi Despensa 🛒'
+        })
+        toast.success('Lista compartida con éxito')
+      } else {
+        const link = document.createElement('a')
+        link.download = 'lista-de-compras.png'
+        link.href = dataUrl
+        link.click()
+        toast.success('Imagen descargada')
+      }
+    } catch (err) {
+      toast.error('No se pudo generar la imagen')
+    } finally {
+      setSharing(false)
     }
   }
 
@@ -141,7 +149,6 @@ export default function ShoppingListPage() {
 
   return (
     <div className="mx-auto max-w-md p-4 pb-28">
-      
       <header className="mb-6 mt-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link 
@@ -158,16 +165,15 @@ export default function ShoppingListPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <button
-            onClick={handleShare}
-            className={`flex h-10 w-10 items-center justify-center rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95 ${glass3dClass}`}
-            title="Compartir lista"
-          >
-            <Share2 size={18} />
-          </button>
-        </div>
+        <button
+          onClick={handleShareImage}
+          disabled={sharing || items.length === 0}
+          className={`flex h-10 px-3.5 items-center gap-2 rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 cursor-pointer ${glass3dClass}`}
+          title="Compartir tarjeta visual"
+        >
+          {sharing ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
+          <span className="text-xs font-bold">Compartir</span>
+        </button>
       </header>
 
       {loading ? (
@@ -183,7 +189,7 @@ export default function ShoppingListPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div ref={listRef} className="space-y-6 p-2 rounded-3xl bg-transparent">
           {Object.entries(groupedItems).map(([category, categoryItems]) => (
             <div key={category} className="space-y-3">
               <h2 className="flex items-center gap-2 font-bold text-gray-800 dark:text-gray-100 text-xs tracking-wider uppercase px-2">
@@ -220,7 +226,6 @@ export default function ShoppingListPage() {
                         </div>
                       </div>
 
-                      {/* Selector de cantidad a comprar */}
                       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1 rounded-xl bg-slate-200/50 dark:bg-slate-950/50 p-1 border border-black/5 dark:border-white/5 shadow-inner">
                           <button
