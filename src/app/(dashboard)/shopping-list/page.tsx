@@ -108,14 +108,14 @@ export default function ShoppingListPage() {
   return (
     <div className="mx-auto max-w-md p-4 pb-28">
       <header className="mb-6 mt-4 flex items-center gap-3">
-        <Link href="/pantry" className="rounded-full bg-white/50 backdrop-blur-md border border-white/60 p-2 text-gray-700 shadow-sm transition-all hover:bg-white/80">
+        <Link href="/pantry" className="rounded-full bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/60 dark:border-slate-700/60 p-2 text-gray-700 dark:text-gray-200 shadow-sm transition-all hover:bg-white/80 dark:hover:bg-slate-700">
           <ArrowLeft size={20} />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 drop-shadow-sm flex items-center gap-2">
-            Lista de Compras <ShoppingCart size={22} className="text-indigo-500"/>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm flex items-center gap-2">
+            Lista de Compras <ShoppingCart size={22} className="text-indigo-500 dark:text-indigo-400"/>
           </h1>
-          <p className="text-sm text-gray-600">Ajusta lo que realmente compraste</p>
+          <p className="text-sm text-gray-600 dark:text-gray-300">Ajusta lo que realmente compraste</p>
         </div>
       </header>
 
@@ -124,10 +124,10 @@ export default function ShoppingListPage() {
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-3xl bg-white/40 backdrop-blur-lg border border-white/60 p-8 text-center shadow-[0_8px_32px_0_rgba(31,38,135,0.07)]">
+        <div className="rounded-3xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-lg border border-white/60 dark:border-slate-700/60 p-8 text-center shadow-[0_8px_32px_0_rgba(31,38,135,0.07)]">
           <PartyPopper className="mx-auto mb-3 text-emerald-400" size={48} />
-          <h2 className="text-lg font-semibold text-gray-800">¡Surtido completo!</h2>
-          <p className="mt-1 text-sm text-gray-600">No hay productos que requieran reposición por ahora.</p>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">¡Surtido completo!</h2>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">No hay productos que requieran reposición por ahora.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -141,39 +141,39 @@ export default function ShoppingListPage() {
                 onClick={() => toggleItem(item.id)}
                 className={`flex cursor-pointer items-center justify-between rounded-2xl backdrop-blur-lg border p-4 shadow-[0_4px_16px_0_rgba(31,38,135,0.05)] transition-all ${
                   isSelected 
-                    ? 'bg-indigo-500/10 border-indigo-300/80' 
-                    : 'bg-white/40 border-white/60 hover:bg-white/50'
+                    ? 'bg-indigo-500/10 border-indigo-300/80 dark:border-indigo-500/50 dark:bg-indigo-500/20' 
+                    : 'bg-white/40 dark:bg-slate-800/40 border-white/60 dark:border-slate-700/60 hover:bg-white/50 dark:hover:bg-slate-800/60'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={isSelected ? 'text-indigo-600' : 'text-gray-400'}>
+                  <div className={isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-gray-500'}>
                     {isSelected ? <CheckCircle2 size={24} /> : <Circle size={24} />}
                   </div>
                   <div>
-                    <h3 className={`font-semibold transition-colors ${isSelected ? 'text-indigo-900 line-through opacity-70' : 'text-gray-900'}`}>
+                    <h3 className={`font-semibold transition-colors ${isSelected ? 'text-indigo-900 dark:text-indigo-300 line-through opacity-70' : 'text-gray-900 dark:text-white'}`}>
                       {item.name}
                     </h3>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       Actual: {item.current_quantity} {item.unit}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 rounded-xl bg-white/70 border border-white/80 p-1 shadow-xs">
+                <div className="flex items-center gap-1.5 rounded-xl bg-white/70 dark:bg-slate-900/50 border border-white/80 dark:border-slate-700/50 p-1 shadow-xs">
                   <button
                     onClick={(e) => handleQuantityChange(item.id, -1, e)}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-gray-700 shadow-xs hover:bg-indigo-50 hover:text-indigo-600 active:scale-90 transition-all cursor-pointer"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 shadow-xs hover:bg-indigo-50 dark:hover:bg-slate-600 hover:text-indigo-600 dark:hover:text-indigo-300 active:scale-90 transition-all cursor-pointer"
                   >
                     <Minus size={14} />
                   </button>
                   
-                  <span className="min-w-8 text-center text-xs font-bold text-gray-800">
+                  <span className="min-w-8 text-center text-xs font-bold text-gray-800 dark:text-gray-200">
                     +{qtyToBuy}
                   </span>
 
                   <button
                     onClick={(e) => handleQuantityChange(item.id, 1, e)}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-gray-700 shadow-xs hover:bg-indigo-50 hover:text-indigo-600 active:scale-90 transition-all cursor-pointer"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 shadow-xs hover:bg-indigo-50 dark:hover:bg-slate-600 hover:text-indigo-600 dark:hover:text-indigo-300 active:scale-90 transition-all cursor-pointer"
                   >
                     <Plus size={14} />
                   </button>
