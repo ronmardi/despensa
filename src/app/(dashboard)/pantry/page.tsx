@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Minus, Package, AlertTriangle, Trash2, ShoppingCart, Users, LogOut, Search, X, Clock } from 'lucide-react'
+import { Plus, Minus, Package, AlertTriangle, Trash2, ShoppingCart, Users, LogOut, Search, X, Clock, User } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
 interface PantryItem {
@@ -163,6 +163,13 @@ export default function PantryPage() {
 
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
+          <Link 
+            href="/profile" 
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/60 dark:border-slate-700/60 text-indigo-600 dark:text-indigo-400 shadow-sm transition-all hover:bg-white/80 dark:hover:bg-slate-700 active:scale-95"
+            title="Mi Perfil"
+          >
+            <User size={18} />
+          </Link>
           <Link 
             href="/history" 
             className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/60 dark:border-slate-700/60 text-gray-700 dark:text-gray-200 shadow-sm transition-all hover:bg-white/80 dark:hover:bg-slate-700 active:scale-95"
