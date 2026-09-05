@@ -125,10 +125,62 @@ export async function createHouseholdAction(name: string = 'Mi Despensa') {
 export async function leaveHouseholdAction() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Sesión no válida.' }
+  if (!user) return { success: false, error: 'No autorizado' }
 
-  const { error } = await supabase.from('household_members').delete().eq('user_id', user.id)
-  if (error) return { success: false, error: error.message }
+  // 1. Obtener los datos actuales del usuario en el hogar
+  const { data: currentMember, error: memberError } = await supabase
+    .from('household_members')
+    .select('household_id, role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (memberError || !currentMember) {
+    return { success: false, error: 'No tienes una despensa asignada.' }
+  }
+
+  const householdId = currentMember.household_id
+
+  // 2. Si el usuario es administrador, hacemos verificaciones de seguridad
+  if (currentMember.role === 'admin') {
+    const { data: allMembers } = await supabase
+      .from('household_members')
+      .select('id, role')
+      .eq('household_id', householdId)
+
+    if (allMembers) {
+      const totalMembers = allMembers.length
+      const adminCount = allMembers.filter(m => m.role === 'admin').length
+
+      // CASO A: Es el único admin, pero hay más personas en el hogar.
+      if (adminCount === 1 && totalMembers > 1) {
+        return { 
+          success: false, 
+          error: 'Eres el único administrador. Nombra a otro miembro como administrador antes de abandonar la despensa.' 
+        }
+      }
+
+      // CASO B: Es la última persona en la despensa.
+      if (totalMembers === 1) {
+        // En lugar de solo salir, borramos la despensa completa para no dejar "basura" en la base de datos.
+        // (Asumiendo que tienes configurado el borrado en cascada en tu base de datos)
+        const { error: deleteError } = await supabase.from('households').delete().eq('id', householdId)
+        if (deleteError) return { success: false, error: deleteError.message }
+        
+        revalidatePath('/pantry')
+        revalidatePath('/household')
+        return { success: true }
+      }
+    }
+  }
+
+  // 3. Si no es admin, o hay más admins, simplemente borramos su membresía
+  const { error: leaveError } = await supabase
+    .from('household_members')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('household_id', householdId)
+
+  if (leaveError) return { success: false, error: leaveError.message }
 
   revalidatePath('/pantry')
   revalidatePath('/household')
