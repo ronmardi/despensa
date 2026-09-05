@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { ArrowLeft, Users, Copy, Check, QrCode, UserPlus, Loader2, Share2 } from 'lucide-react'
-import { ThemeToggle } from '@/components/ThemeToggle'
 import { toast } from 'sonner'
 
 interface Household {
@@ -43,7 +42,6 @@ export default function HouseholdPage() {
 
         if (hh) setHousehold(hh)
 
-        // Consultar cantidad total de integrantes (con respaldo mínimo de 1)
         const { data: allMembers } = await supabase
           .from('household_members')
           .select('id')
@@ -61,7 +59,6 @@ export default function HouseholdPage() {
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/join?code=${household.invite_code}` 
     : ''
 
-  // Copiar el enlace completo de invitación
   const handleCopyLink = () => {
     if (!inviteUrl) return
     navigator.clipboard.writeText(inviteUrl)
@@ -70,7 +67,6 @@ export default function HouseholdPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // Compartir enlace directamente vía WhatsApp o menú nativo del celular
   const handleShareLink = async () => {
     if (!inviteUrl || !household) return
 
@@ -139,8 +135,6 @@ export default function HouseholdPage() {
             <p className="text-xs font-medium text-gray-600 dark:text-gray-300">Gestión de miembros y accesos</p>
           </div>
         </div>
-
-        <ThemeToggle />
       </header>
 
       {loading ? (
@@ -149,7 +143,6 @@ export default function HouseholdPage() {
         </div>
       ) : household ? (
         <div className="space-y-5">
-          {/* Tarjeta del Hogar */}
           <div className={`rounded-3xl p-6 text-center ${glass3dClass}`}>
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
               <Users size={28} />
@@ -160,7 +153,6 @@ export default function HouseholdPage() {
             </p>
           </div>
 
-          {/* Opciones de Invitación */}
           <div className={`rounded-3xl p-5 space-y-4 ${glass3dClass}`}>
             <div className="flex items-center justify-between">
               <div>
@@ -187,7 +179,6 @@ export default function HouseholdPage() {
               </div>
             )}
 
-            {/* Visualización del Enlace Directo */}
             <div className="space-y-2">
               <label className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Enlace directo de invitación
@@ -197,7 +188,6 @@ export default function HouseholdPage() {
               </div>
             </div>
 
-            {/* Botones de Acción */}
             <div className="flex gap-2 pt-1">
               <button
                 onClick={handleShareLink}
@@ -217,7 +207,6 @@ export default function HouseholdPage() {
             </div>
           </div>
 
-          {/* Unirse a otro hogar */}
           <div className={`rounded-3xl p-5 ${glass3dClass}`}>
             <h3 className="font-bold text-gray-900 dark:text-white text-sm mb-1">¿Tienes un código manual?</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Ingresa un código de 6 caracteres para unirte a otro hogar</p>
