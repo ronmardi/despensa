@@ -59,6 +59,7 @@ export default function PantryPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('Todas')
   const [householdId, setHouseholdId] = useState<string | null>(null)
+  const [householdName, setHouseholdName] = useState<string>('Mi Despensa')
   const [userEmail, setUserEmail] = useState<string>('')
   const [editingItem, setEditingItem] = useState<PantryItem | null>(null)
 
@@ -80,6 +81,17 @@ export default function PantryPage() {
       if (members && members.length > 0) {
         const hId = members[0].household_id
         setHouseholdId(hId)
+
+        // Obtener el nombre del hogar
+        const { data: hhData } = await supabase
+          .from('households')
+          .select('name')
+          .eq('id', hId)
+          .single()
+
+        if (hhData) {
+          setHouseholdName(hhData.name)
+        }
 
         const { data: pantryItems } = await supabase
           .from('items')
@@ -209,7 +221,10 @@ export default function PantryPage() {
 
       <header className="mb-6 mt-4 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm">Mi Despensa</h1>
+          {/* AQUÍ ESTÁ EL CAMBIO: Muestra el nombre dinámico del hogar */}
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm truncate max-w-[200px]">
+            {householdName}
+          </h1>
           <p className="text-xs font-medium text-gray-600 dark:text-gray-300">Inventario interactivo</p>
         </div>
 
@@ -393,6 +408,7 @@ export default function PantryPage() {
         </div>
       )}
 
+      {/* Botón Flotante con Profundidad 3D */}
       <Link 
         href="/pantry/add"
         className="fixed bottom-7 right-7 flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-tr from-indigo-600 via-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all duration-200"
