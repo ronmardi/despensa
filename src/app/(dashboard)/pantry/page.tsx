@@ -109,41 +109,38 @@ export default function PantryPage() {
 
     const newQuantity = Math.max(0, currentItem.current_quantity + delta)
 
+    // Actualización visual rápida (optimista)
     setItems((prevItems) =>
       prevItems.map((item) => (item.id === id ? { ...item, current_quantity: newQuantity } : item))
     )
 
-    await supabase
-      .from('items')
-      .update({ current_quantity: newQuantity })
-      .eq('id', id)
-
-    if (householdId) {
-      await supabase.from('activity_logs').insert([{
-        household_id: householdId,
-        user_email: userEmail,
-        item_name: currentItem.name,
-        action_type: delta > 0 ? 'INCREASE' : 'DECREASE',
-        details: `Cambió la cantidad de ${currentItem.current_quantity} a ${newQuantity} ${currentItem.unit}`
-      }])
+    // Ejecuta la seguridad en el servidor (esto también registra el log en la base de datos)
+    const res = await updateItemQuantityAction(id, newQuantity, currentItem.name, delta)
+    
+    if (!res.success) {
+      alert('Error al actualizar: ' + res.error)
+      // Revierte si falla
+      setItems((prevItems) =>
+        prevItems.map((item) => (item.id === id ? { ...item, current_quantity: currentItem.current_quantity } : item))
+      )
     }
   }
 
   const handleDeleteItem = async (id: string) => {
     const itemToDelete = items.find((i) => i.id === id)
+    if (!itemToDelete) return
     if (!confirm('¿Seguro que quieres eliminar este producto?')) return
 
+    // Eliminación visual rápida
+    const previousItems = [...items]
     setItems((prev) => prev.filter((item) => item.id !== id))
-    await supabase.from('items').delete().eq('id', id)
 
-    if (householdId && itemToDelete) {
-      await supabase.from('activity_logs').insert([{
-        household_id: householdId,
-        user_email: userEmail,
-        item_name: itemToDelete.name,
-        action_type: 'DELETE',
-        details: `Producto eliminado de la despensa`
-      }])
+    // Ejecuta en el servidor (esto también registra la eliminación en el log)
+    const res = await deleteItemAction(id, itemToDelete.name)
+    
+    if (!res.success) {
+      alert('Error al eliminar: ' + res.error)
+      setItems(previousItems) // Revierte si falla
     }
   }
 
