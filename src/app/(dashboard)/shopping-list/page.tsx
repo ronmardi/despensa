@@ -187,9 +187,9 @@ export default function ShoppingListPage() {
           {Object.entries(groupedItems).map(([category, categoryItems]) => (
             <div key={category} className="space-y-3">
               <h2 className="flex items-center gap-2 font-bold text-gray-800 dark:text-gray-100 text-xs tracking-wider uppercase px-2">
-                <span className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-700 to-transparent"></span>
+                <span className="h-px flex-1 bg-linear-to-r from-transparent via-gray-300 dark:via-gray-700 to-transparent"></span>
                 {category}
-                <span className="h-px flex-1 bg-gradient-to-r from-gray-300 dark:from-gray-700 via-gray-300 dark:via-gray-700 to-transparent"></span>
+                <span className="h-px flex-1 bg-linear-to-r from-gray-300 dark:from-gray-700 via-gray-300 dark:via-gray-700 to-transparent"></span>
               </h2>
 
               <div className="space-y-2.5">
