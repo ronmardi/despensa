@@ -264,7 +264,7 @@ export default function PantryPage() {
                   onClick={() => setSelectedCategory(cat)}
                   className={`shrink-0 rounded-xl px-4 py-2 text-xs font-bold capitalize transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
+                      ? 'bg-linear-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
                       : `${glass3dClass} text-gray-700 dark:text-gray-300 hover:bg-white/80 dark:hover:bg-slate-800`
                   }`}
                 >
@@ -374,7 +374,7 @@ export default function PantryPage() {
       {/* Botón Flotante con Profundidad 3D */}
       <Link 
         href="/pantry/add"
-        className="fixed bottom-7 right-7 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all duration-200"
+        className="fixed bottom-7 right-7 flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-tr from-indigo-600 via-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all duration-200"
       >
         <Plus size={30} />
       </Link>
