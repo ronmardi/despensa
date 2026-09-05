@@ -1,14 +1,19 @@
 @import "tailwindcss";
 
-/* Instructs Tailwind v4 to trigger dark: styles using the .dark class */
-@variant dark (&:where(.dark, .dark *));
+@custom-variant dark (&:where(.dark, .dark *));
+
+html {
+  background-color: #f1f5f9;
+}
+
+html.dark {
+  background-color: #020617 !important;
+  color-scheme: dark;
+}
 
 body {
-  background-color: #f8fafc;
-  background-image: 
-    radial-gradient(at 0% 0%, #e0e7ff 0px, transparent 50%),
-    radial-gradient(at 100% 0%, #ede9fe 0px, transparent 50%),
-    radial-gradient(at 100% 100%, #dbeafe 0px, transparent 50%);
-  background-attachment: fixed;
-  color: #111827;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
