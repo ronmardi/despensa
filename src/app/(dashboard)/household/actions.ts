@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { randomBytes } from 'crypto' //
 
 export async function getHouseholdData() {
   const supabase = await createClient()
@@ -72,9 +73,11 @@ export async function createHouseholdAction(name: string = 'Mi Despensa') {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Sesión no válida.' }
 
-  // Generar código aleatorio de 6 caracteres
-  const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+  // Generación criptográficamente segura (8 caracteres)
+  const inviteCode = randomBytes(4).toString('hex').toUpperCase()
 
+  // Para hacer esto transaccional y evitar que el usuario se quede sin hogar si algo falla,
+  // verificamos si se crea el hogar ANTES de borrar su membresía actual.
   const { data: newHousehold, error: hError } = await supabase
     .from('households')
     .insert([{ name, invite_code: inviteCode }])
@@ -83,6 +86,7 @@ export async function createHouseholdAction(name: string = 'Mi Despensa') {
 
   if (hError || !newHousehold) return { success: false, error: hError?.message }
 
+  // Borramos la membresía antigua solo cuando el nuevo hogar ya existe
   await supabase.from('household_members').delete().eq('user_id', user.id)
 
   const { error: joinError } = await supabase

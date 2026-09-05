@@ -4,7 +4,12 @@ import { createClient } from '@/lib/supabase/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/pantry'
+  let next = searchParams.get('next') ?? '/pantry'
+
+  // Validación de seguridad contra Open Redirect
+  if (!next.startsWith('/') || next.startsWith('//')) {
+    next = '/pantry'
+  }
 
   if (code) {
     const supabase = await createClient()
@@ -15,6 +20,5 @@ export async function GET(request: Request) {
     }
   }
 
-  // Si hay error, devuelve al login
   return NextResponse.redirect(`${origin}/login?error=auth_failed`)
 }
