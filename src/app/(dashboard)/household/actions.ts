@@ -42,8 +42,20 @@ export async function getHouseholdData() {
 
 export async function joinHouseholdAction(inviteCode: string) {
   const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return { success: false, error: 'Sesión no válida.' }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Sesión no válida.' }
+
+  // 1. Rate Limiting: Máximo 5 intentos en los últimos 15 minutos
+  const fifteenMinsAgo = new Date(Date.now() - 15 * 60000).toISOString()
+  const { count } = await supabase
+    .from('join_attempts')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .gte('attempt_time', fifteenMinsAgo)
+
+  if (count && count >= 5) {
+    return { success: false, error: 'Demasiados intentos fallidos. Espera 15 minutos.' }
+  }
 
   const cleanCode = inviteCode.trim().toUpperCase()
 
@@ -53,15 +65,25 @@ export async function joinHouseholdAction(inviteCode: string) {
     .eq('invite_code', cleanCode)
     .single()
 
-  if (householdError || !household) return { success: false, error: 'Código inválido.' }
+  if (householdError || !household) {
+    // Registrar intento fallido
+    await supabase.from('join_attempts').insert([{ user_id: user.id }])
+    return { success: false, error: 'Código inválido.' }
+  }
 
-  await supabase.from('household_members').delete().eq('user_id', user.id)
-
+  // 2. Operación Atómica (Upsert): Actualiza si existe, inserta si no. No hay riesgo de quedar sin hogar.
   const { error: joinError } = await supabase
     .from('household_members')
-    .insert([{ household_id: household.id, user_id: user.id, role: 'member' }])
+    .upsert({ 
+      user_id: user.id, 
+      household_id: household.id, 
+      role: 'member' 
+    }, { onConflict: 'user_id' })
 
   if (joinError) return { success: false, error: joinError.message }
+
+  // Limpiar intentos tras un éxito
+  await supabase.from('join_attempts').delete().eq('user_id', user.id)
 
   revalidatePath('/pantry')
   revalidatePath('/household')

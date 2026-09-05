@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { ArrowLeft, ShoppingCart, CheckCircle2, Circle, PartyPopper, Plus, Minus } from 'lucide-react'
+import { ArrowLeft, ShoppingCart, CheckCircle2, Circle, PartyPopper, Plus, Minus, Loader2 } from 'lucide-react'
+import { completePurchasesAction } from './actions'
 
 interface ShoppingItem {
   id: string
@@ -85,23 +86,28 @@ export default function ShoppingListPage() {
     if (selectedItems.size === 0) return
     setPurchasing(true)
 
-    const updates = Array.from(selectedItems).map(async (id) => {
-      const item = items.find((i) => i.id === id)
-      if (!item) return
-      
+    // Preparamos los datos para enviarlos al servidor de forma segura
+    const purchaseData = Array.from(selectedItems).map((id) => {
+      const item = items.find((i) => i.id === id)!
       const qtyToAdd = boughtQuantities[id] || 1
-      const newQty = item.current_quantity + qtyToAdd
-
-      await supabase
-        .from('items')
-        .update({ current_quantity: newQty })
-        .eq('id', id)
+      return {
+        id: item.id,
+        name: item.name,
+        added_qty: qtyToAdd,
+        new_total: item.current_quantity + qtyToAdd
+      }
     })
 
-    await Promise.all(updates)
-
-    setItems((prev) => prev.filter((item) => !selectedItems.has(item.id)))
-    setSelectedItems(new Set())
+    // Llamamos a la Server Action (Defensa en profundidad + historial)
+    const res = await completePurchasesAction(purchaseData)
+    
+    if (res.success) {
+      setItems((prev) => prev.filter((item) => !selectedItems.has(item.id)))
+      setSelectedItems(new Set())
+    } else {
+      alert('Error al actualizar despensa: ' + res.error)
+    }
+    
     setPurchasing(false)
   }
 
@@ -121,7 +127,7 @@ export default function ShoppingListPage() {
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-3xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-lg border border-white/60 dark:border-slate-700/60 p-8 text-center shadow-[0_8px_32px_0_rgba(31,38,135,0.07)]">
@@ -191,6 +197,7 @@ export default function ShoppingListPage() {
             disabled={purchasing || selectedItems.size === 0}
             className="w-full flex items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-indigo-500 to-purple-500 px-4 py-4 font-semibold text-white shadow-xl hover:shadow-2xl hover:from-indigo-600 hover:to-purple-600 disabled:opacity-50 disabled:scale-100 transition-all active:scale-[0.98] cursor-pointer"
           >
+            {purchasing ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
             {purchasing ? 'Actualizando despensa...' : `Sumar comprados (${selectedItems.size})`}
           </button>
         </div>

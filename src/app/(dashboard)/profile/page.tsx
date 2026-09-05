@@ -44,9 +44,28 @@ export default function ProfilePage() {
   const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       setUploading(true)
-      if (!event.target.files || event.target.files.length === 0) return
+      if (!event.target.files || event.target.files.length === 0) {
+        setUploading(false)
+        return
+      }
       
       const file = event.target.files[0]
+
+      // 1. Validación de tamaño (Máximo 15MB)
+      if (file.size > 15 * 1024 * 1024) {
+        alert('La imagen es demasiado grande. El tamaño máximo es 15MB.')
+        setUploading(false)
+        return
+      }
+
+      // 2. Validación de tipo MIME
+      const validTypes = ['image/jpeg', 'image/png', 'image/webp']
+      if (!validTypes.includes(file.type)) {
+        alert('Formato no válido. Solo se permiten imágenes JPG, PNG o WEBP.')
+        setUploading(false)
+        return
+      }
+
       const fileExt = file.name.split('.').pop()
       const fileName = `${userId}-${Math.random()}.${fileExt}`
       const filePath = `${fileName}`
@@ -74,7 +93,7 @@ export default function ProfilePage() {
       setSaving(true)
       const { error } = await supabase.from('profiles').upsert({
         id: userId,
-        email: email, // <-- Agregado para cumplir con la restricción de tu tabla
+        email: email, 
         full_name: fullName,
         avatar_url: avatarUrl,
         updated_at: new Date().toISOString(),
@@ -133,7 +152,7 @@ export default function ProfilePage() {
               />
             </label>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Toca la cámara para cambiar foto</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Toca la cámara para cambiar foto (Max 15MB)</p>
         </div>
 
         {/* Formulario */}
