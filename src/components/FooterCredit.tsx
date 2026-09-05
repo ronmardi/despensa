@@ -9,10 +9,18 @@ export function FooterCredit() {
       >
         <span>Desarrollado por</span>
         <div className="flex items-center gap-1.5 font-bold tracking-tight text-gray-900 dark:text-white">
-          <img src="/raccoonlab-logo.png" alt="Raccoon Lab" className="h-4 w-auto object-contain" />
           <span className="bg-linear-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent font-extrabold">
             Raccoon Lab
           </span>
+          <img
+            src="/raccoonlab-logo.png"
+            alt="Raccoon Lab"
+            className="h-4 w-auto object-contain filter drop-shadow-xs"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none'
+            }}
+          />
+          <span className="text-sm leading-none filter drop-shadow-xs">🦝</span>
         </div>
       </a>
     </footer>
