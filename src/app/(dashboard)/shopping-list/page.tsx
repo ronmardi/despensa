@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { ShoppingCart, ArrowLeft, Share2, Check, Circle, Package, Loader2 } from 'lucide-react'
+import { ShoppingCart, ArrowLeft, Share2, Check, Circle, Plus, Minus, Loader2 } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { toast } from 'sonner'
 
@@ -17,7 +17,6 @@ interface PantryItem {
   unit: string
 }
 
-// Función de emojis (compartida)
 function getProductEmoji(name: string): string {
   const n = name.toLowerCase()
   if (n.includes('arroz')) return '🍚'
@@ -33,7 +32,7 @@ function getProductEmoji(name: string): string {
   if (n.includes('manzana')) return '🍎'
   if (n.includes('platano') || n.includes('banana')) return '🍌'
   if (n.includes('agua')) return '💧'
-  if (n.includes('jabon') || n.includes('jabón')) return '🧼'
+  if (n.includes('jabon') || n.includes('jabón') || n.includes('cloro')) return '🧼'
   if (n.includes('papel') || n.includes('higienico')) return '🧻'
   return '📦'
 }
@@ -43,6 +42,7 @@ export default function ShoppingListPage() {
   const [items, setItems] = useState<PantryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set())
+  const [buyQuantities, setBuyQuantities] = useState<Record<string, number>>({})
 
   useEffect(() => {
     async function loadShoppingList() {
@@ -57,16 +57,22 @@ export default function ShoppingListPage() {
       if (members && members.length > 0) {
         const hId = members[0].household_id
 
-        // Traemos todos los items para filtrar los que están bajo el umbral mínimo
         const { data: pantryItems } = await supabase
           .from('items')
           .select('*')
           .eq('household_id', hId)
 
         if (pantryItems) {
-          // Filtramos solo los que necesitan reposición
           const itemsToBuy = pantryItems.filter(item => item.current_quantity <= item.min_threshold)
           setItems(itemsToBuy)
+
+          // Inicializar cantidades a comprar según sugerencia previa
+          const initialQuantities: Record<string, number> = {}
+          itemsToBuy.forEach(item => {
+            const suggested = Math.max(1, (item.ideal_quantity || item.min_threshold + 1) - item.current_quantity)
+            initialQuantities[item.id] = suggested
+          })
+          setBuyQuantities(initialQuantities)
         }
       }
       setLoading(false)
@@ -75,7 +81,6 @@ export default function ShoppingListPage() {
     loadShoppingList()
   }, [supabase])
 
-  // Agrupar productos por categoría
   const groupedItems = useMemo(() => {
     return items.reduce((acc, item) => {
       const cat = item.category || 'Otros'
@@ -95,7 +100,15 @@ export default function ShoppingListPage() {
     setCheckedItems(newChecked)
   }
 
-  // Compartir lista por WhatsApp / Nativo
+  const handleBuyQuantityChange = (e: React.MouseEvent, id: string, delta: number) => {
+    e.stopPropagation() // Evita tachar el producto al hacer clic en los botones + / -
+    setBuyQuantities((prev) => {
+      const current = prev[id] || 1
+      const next = Math.max(1, current + delta)
+      return { ...prev, [id]: next }
+    })
+  }
+
   const handleShare = () => {
     if (items.length === 0) {
       toast.error('La lista está vacía')
@@ -107,9 +120,8 @@ export default function ShoppingListPage() {
     Object.entries(groupedItems).forEach(([category, catItems]) => {
       text += `📍 *${category.toUpperCase()}*\n`
       catItems.forEach(item => {
-        // Calculamos cuánto falta para llegar a la cantidad ideal
-        const amountToBuy = Math.max(1, (item.ideal_quantity || item.min_threshold + 1) - item.current_quantity)
-        text += `  ▫️ ${getProductEmoji(item.name)} ${item.name} (${amountToBuy} ${item.unit})\n`
+        const qty = buyQuantities[item.id] || 1
+        text += `  ▫️ ${getProductEmoji(item.name)} ${item.name} (${qty} ${item.unit})\n`
       })
       text += "\n"
     })
@@ -151,7 +163,7 @@ export default function ShoppingListPage() {
           <button
             onClick={handleShare}
             className={`flex h-10 w-10 items-center justify-center rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95 ${glass3dClass}`}
-            title="Compartir por WhatsApp"
+            title="Compartir lista"
           >
             <Share2 size={18} />
           </button>
@@ -174,17 +186,16 @@ export default function ShoppingListPage() {
         <div className="space-y-6">
           {Object.entries(groupedItems).map(([category, categoryItems]) => (
             <div key={category} className="space-y-3">
-              {/* Encabezado de Categoría */}
-              <h2 className="sticky top-4 z-20 flex items-center gap-2 font-bold text-gray-800 dark:text-gray-100 text-sm tracking-wide uppercase px-2 drop-shadow-sm">
-                <span className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-600 to-transparent"></span>
+              <h2 className="flex items-center gap-2 font-bold text-gray-800 dark:text-gray-100 text-xs tracking-wider uppercase px-2">
+                <span className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-700 to-transparent"></span>
                 {category}
-                <span className="h-px flex-1 bg-gradient-to-r from-gray-300 dark:from-gray-600 via-gray-300 dark:via-gray-600 to-transparent"></span>
+                <span className="h-px flex-1 bg-gradient-to-r from-gray-300 dark:from-gray-700 via-gray-300 dark:via-gray-700 to-transparent"></span>
               </h2>
 
               <div className="space-y-2.5">
                 {categoryItems.map((item) => {
                   const isChecked = checkedItems.has(item.id)
-                  const amountToBuy = Math.max(1, (item.ideal_quantity || item.min_threshold + 1) - item.current_quantity)
+                  const buyQty = buyQuantities[item.id] || 1
 
                   return (
                     <div 
@@ -209,11 +220,28 @@ export default function ShoppingListPage() {
                         </div>
                       </div>
 
-                      <div className={`flex flex-col items-end transition-all ${isChecked ? 'opacity-50' : ''}`}>
-                        <span className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400">
-                          +{amountToBuy}
-                        </span>
-                        <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">
+                      {/* Selector de cantidad a comprar */}
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1 rounded-xl bg-slate-200/50 dark:bg-slate-950/50 p-1 border border-black/5 dark:border-white/5 shadow-inner">
+                          <button
+                            onClick={(e) => handleBuyQuantityChange(e, item.id, -1)}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 shadow-xs hover:text-red-500 active:scale-90 transition-all cursor-pointer"
+                          >
+                            <Minus size={13} />
+                          </button>
+                          
+                          <span className="min-w-8 text-center text-xs font-extrabold text-indigo-600 dark:text-indigo-400">
+                            +{buyQty}
+                          </span>
+
+                          <button
+                            onClick={(e) => handleBuyQuantityChange(e, item.id, 1)}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 shadow-xs hover:text-green-500 active:scale-90 transition-all cursor-pointer"
+                          >
+                            <Plus size={13} />
+                          </button>
+                        </div>
+                        <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400 min-w-8">
                           {item.unit}
                         </span>
                       </div>
