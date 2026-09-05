@@ -169,8 +169,8 @@ export default function PantryPage() {
     })
   }
 
-  // Estilo base 3D de Liquid Glass
-  const glass3dStyle = "backdrop-blur-xl bg-gradient-to-b from-white/80 via-white/50 to-white/30 dark:from-slate-800/80 dark:via-slate-800/50 dark:to-slate-900/40 border border-white/80 dark:border-slate-700/60 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.08),inset_0_1px_2px_0_rgba(255,255,255,0.9)] dark:shadow-[0_12px_30px_-5px_rgba(0,0,0,0.5),inset_0_1px_1px_0_rgba(255,255,255,0.15)]"
+  // Estilo Liquid Glass 3D con luz de bisel superior e interior
+  const glass3dClass = "backdrop-blur-md bg-white/60 dark:bg-slate-900/60 border border-white/80 dark:border-slate-700/60 shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.4)]"
 
   return (
     <div className="mx-auto max-w-md p-4 pb-28">
@@ -186,38 +186,38 @@ export default function PantryPage() {
 
       <header className="mb-6 mt-4 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white drop-shadow-md">Mi Despensa</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm">Mi Despensa</h1>
           <p className="text-xs font-medium text-gray-600 dark:text-gray-300">Inventario interactivo</p>
         </div>
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
           
-          <div className={`flex items-center gap-1 p-1 rounded-2xl ${glass3dStyle}`}>
+          <div className={`flex items-center gap-1 p-1 rounded-2xl ${glass3dClass}`}>
             <Link 
               href="/profile" 
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-white/60 dark:hover:bg-slate-700/60 transition-all active:scale-95"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95"
               title="Mi Perfil"
             >
               <User size={18} />
             </Link>
             <Link 
               href="/history" 
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-700 dark:text-gray-200 hover:bg-white/60 dark:hover:bg-slate-700/60 transition-all active:scale-95"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-700 dark:text-gray-200 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95"
               title="Historial"
             >
               <Clock size={18} />
             </Link>
             <Link 
               href="/household" 
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-700 dark:text-gray-200 hover:bg-white/60 dark:hover:bg-slate-700/60 transition-all active:scale-95"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-700 dark:text-gray-200 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95"
               title="Hogar"
             >
               <Users size={18} />
             </Link>
             <Link 
               href="/shopping-list" 
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-white/60 dark:hover:bg-slate-700/60 transition-all active:scale-95"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95"
               title="Lista de Compras"
             >
               <ShoppingCart size={18} />
@@ -242,7 +242,7 @@ export default function PantryPage() {
               placeholder="Buscar producto..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className={`w-full rounded-2xl pl-10 pr-10 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all ${glass3dStyle}`}
+              className={`w-full rounded-2xl pl-10 pr-10 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all ${glass3dClass}`}
             />
             {searchTerm && (
               <button
@@ -254,7 +254,8 @@ export default function PantryPage() {
             )}
           </div>
 
-          <div className="flex gap-2 overflow-x-auto pb-1 pt-1 no-scrollbar">
+          {/* Carrusel de categorías con margen ajustado para evitar recortes */}
+          <div className="flex gap-2 overflow-x-auto py-2 px-1 -mx-1 no-scrollbar items-center">
             {categories.map((cat) => {
               const isActive = selectedCategory.toLowerCase() === cat.toLowerCase()
               return (
@@ -263,8 +264,8 @@ export default function PantryPage() {
                   onClick={() => setSelectedCategory(cat)}
                   className={`shrink-0 rounded-xl px-4 py-2 text-xs font-bold capitalize transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-[0_4px_14px_0_rgba(99,102,241,0.39)] scale-105'
-                      : `${glass3dStyle} text-gray-700 dark:text-gray-300 hover:scale-102`
+                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
+                      : `${glass3dClass} text-gray-700 dark:text-gray-300 hover:bg-white/80 dark:hover:bg-slate-800`
                   }`}
                 >
                   {cat}
@@ -280,13 +281,13 @@ export default function PantryPage() {
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
         </div>
       ) : items.length === 0 ? (
-        <div className={`rounded-3xl p-8 text-center ${glass3dStyle}`}>
+        <div className={`rounded-3xl p-8 text-center ${glass3dClass}`}>
           <Package className="mx-auto mb-3 text-indigo-500" size={48} />
           <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">Tu despensa está vacía</h2>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Presiona el botón flotante para registrar productos.</p>
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className={`rounded-3xl p-8 text-center ${glass3dStyle}`}>
+        <div className={`rounded-3xl p-8 text-center ${glass3dClass}`}>
           <Search className="mx-auto mb-3 text-gray-400" size={40} />
           <h2 className="text-base font-bold text-gray-800 dark:text-gray-200">Sin coincidencias</h2>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">No hay productos que coincidan con los filtros.</p>
@@ -308,14 +309,14 @@ export default function PantryPage() {
             return (
               <div 
                 key={item.id}
-                className={`group flex items-center justify-between rounded-3xl p-4 transition-all duration-200 ${glass3dStyle} ${
+                className={`flex items-center justify-between rounded-2xl p-4 transition-all duration-200 ${glass3dClass} ${
                   isLowStock ? 'ring-2 ring-amber-500/40 dark:ring-amber-500/30' : ''
                 }`}
               >
                 <div className="flex-1 pr-2">
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2 text-base">
-                      <span className="text-2xl filter drop-shadow">{getProductEmoji(item.name)}</span>
+                      <span className="text-2xl filter drop-shadow-sm">{getProductEmoji(item.name)}</span>
                       {item.name}
                     </h3>
                     {isLowStock && (
@@ -328,11 +329,10 @@ export default function PantryPage() {
                 </div>
 
                 <div className="flex items-center gap-2.5">
-                  {/* Cápsula 3D para controles de cantidad */}
-                  <div className="flex items-center gap-1 rounded-2xl bg-slate-900/5 dark:bg-slate-950/40 p-1 border border-black/5 dark:border-white/5 shadow-inner">
+                  <div className="flex items-center gap-1 rounded-xl bg-slate-200/50 dark:bg-slate-950/50 p-1 border border-black/5 dark:border-white/5 shadow-inner">
                     <button
                       onClick={() => handleQuantityChange(item.id, -1)}
-                      className="flex h-8 w-8 items-center justify-center rounded-xl bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 shadow-[0_2px_4px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_2px_4px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.1)] hover:text-red-500 active:scale-90 transition-all cursor-pointer"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 shadow-sm hover:text-red-500 active:scale-90 transition-all cursor-pointer"
                     >
                       <Minus size={15} />
                     </button>
@@ -343,7 +343,7 @@ export default function PantryPage() {
 
                     <button
                       onClick={() => handleQuantityChange(item.id, 1)}
-                      className="flex h-8 w-8 items-center justify-center rounded-xl bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 shadow-[0_2px_4px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_2px_4px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.1)] hover:text-green-500 active:scale-90 transition-all cursor-pointer"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 shadow-sm hover:text-green-500 active:scale-90 transition-all cursor-pointer"
                     >
                       <Plus size={15} />
                     </button>
@@ -374,7 +374,7 @@ export default function PantryPage() {
       {/* Botón Flotante con Profundidad 3D */}
       <Link 
         href="/pantry/add"
-        className="fixed bottom-7 right-7 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 text-white shadow-[0_10px_25px_-3px_rgba(99,102,241,0.5),inset_0_2px_2px_0_rgba(255,255,255,0.45)] hover:scale-110 active:scale-95 transition-all duration-200"
+        className="fixed bottom-7 right-7 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all duration-200"
       >
         <Plus size={30} />
       </Link>
