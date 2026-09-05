@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { ArrowLeft, ShoppingCart, CheckCircle2, Circle, PartyPopper, Plus, Minus, Loader2 } from 'lucide-react'
-import { completePurchasesAction } from './actions'
+import { ShoppingCart, ArrowLeft, Share2, Check, Circle, Package, Loader2 } from 'lucide-react'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { toast } from 'sonner'
 
-interface ShoppingItem {
+interface PantryItem {
   id: string
   name: string
   category: string
@@ -16,13 +17,32 @@ interface ShoppingItem {
   unit: string
 }
 
+// Función de emojis (compartida)
+function getProductEmoji(name: string): string {
+  const n = name.toLowerCase()
+  if (n.includes('arroz')) return '🍚'
+  if (n.includes('leche')) return '🥛'
+  if (n.includes('pan')) return '🍞'
+  if (n.includes('huevo')) return '🥚'
+  if (n.includes('carne')) return '🥩'
+  if (n.includes('pollo')) return '🍗'
+  if (n.includes('queso')) return '🧀'
+  if (n.includes('tomate')) return '🍅'
+  if (n.includes('cebolla')) return '🧅'
+  if (n.includes('papa')) return '🥔'
+  if (n.includes('manzana')) return '🍎'
+  if (n.includes('platano') || n.includes('banana')) return '🍌'
+  if (n.includes('agua')) return '💧'
+  if (n.includes('jabon') || n.includes('jabón')) return '🧼'
+  if (n.includes('papel') || n.includes('higienico')) return '🧻'
+  return '📦'
+}
+
 export default function ShoppingListPage() {
   const supabase = createClient()
-  const [items, setItems] = useState<ShoppingItem[]>([])
-  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
-  const [boughtQuantities, setBoughtQuantities] = useState<Record<string, number>>({})
+  const [items, setItems] = useState<PantryItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [purchasing, setPurchasing] = useState(false)
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     async function loadShoppingList() {
@@ -35,26 +55,18 @@ export default function ShoppingListPage() {
         .eq('user_id', user.id)
 
       if (members && members.length > 0) {
-        const householdId = members[0].household_id
-        
+        const hId = members[0].household_id
+
+        // Traemos todos los items para filtrar los que están bajo el umbral mínimo
         const { data: pantryItems } = await supabase
           .from('items')
           .select('*')
-          .eq('household_id', householdId)
-          .order('name', { ascending: true })
+          .eq('household_id', hId)
 
         if (pantryItems) {
-          const needsRestock = pantryItems.filter(
-            (item) => item.current_quantity <= item.min_threshold
-          )
-          setItems(needsRestock)
-
-          const initialQuantities: Record<string, number> = {}
-          needsRestock.forEach((item) => {
-            const diff = item.ideal_quantity - item.current_quantity
-            initialQuantities[item.id] = diff > 0 ? diff : 1
-          })
-          setBoughtQuantities(initialQuantities)
+          // Filtramos solo los que necesitan reposición
+          const itemsToBuy = pantryItems.filter(item => item.current_quantity <= item.min_threshold)
+          setItems(itemsToBuy)
         }
       }
       setLoading(false)
@@ -63,65 +75,86 @@ export default function ShoppingListPage() {
     loadShoppingList()
   }, [supabase])
 
-  const toggleItem = (id: string) => {
-    const newSelected = new Set(selectedItems)
-    if (newSelected.has(id)) {
-      newSelected.delete(id)
+  // Agrupar productos por categoría
+  const groupedItems = useMemo(() => {
+    return items.reduce((acc, item) => {
+      const cat = item.category || 'Otros'
+      if (!acc[cat]) acc[cat] = []
+      acc[cat].push(item)
+      return acc
+    }, {} as Record<string, PantryItem[]>)
+  }, [items])
+
+  const toggleCheck = (id: string) => {
+    const newChecked = new Set(checkedItems)
+    if (newChecked.has(id)) {
+      newChecked.delete(id)
     } else {
-      newSelected.add(id)
+      newChecked.add(id)
     }
-    setSelectedItems(newSelected)
+    setCheckedItems(newChecked)
   }
 
-  const handleQuantityChange = (id: string, delta: number, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setBoughtQuantities((prev) => {
-      const current = prev[id] || 1
-      const updated = Math.max(1, current + delta)
-      return { ...prev, [id]: updated }
-    })
-  }
+  // Compartir lista por WhatsApp / Nativo
+  const handleShare = () => {
+    if (items.length === 0) {
+      toast.error('La lista está vacía')
+      return
+    }
 
-  const handleCompletePurchase = async () => {
-    if (selectedItems.size === 0) return
-    setPurchasing(true)
-
-    // Preparamos los datos para enviarlos al servidor de forma segura
-    const purchaseData = Array.from(selectedItems).map((id) => {
-      const item = items.find((i) => i.id === id)!
-      const qtyToAdd = boughtQuantities[id] || 1
-      return {
-        id: item.id,
-        name: item.name,
-        added_qty: qtyToAdd,
-        new_total: item.current_quantity + qtyToAdd
-      }
-    })
-
-    // Llamamos a la Server Action (Defensa en profundidad + historial)
-    const res = await completePurchasesAction(purchaseData)
+    let text = "🛒 *MI LISTA DE COMPRAS*\n\n"
     
-    if (res.success) {
-      setItems((prev) => prev.filter((item) => !selectedItems.has(item.id)))
-      setSelectedItems(new Set())
+    Object.entries(groupedItems).forEach(([category, catItems]) => {
+      text += `📍 *${category.toUpperCase()}*\n`
+      catItems.forEach(item => {
+        // Calculamos cuánto falta para llegar a la cantidad ideal
+        const amountToBuy = Math.max(1, (item.ideal_quantity || item.min_threshold + 1) - item.current_quantity)
+        text += `  ▫️ ${getProductEmoji(item.name)} ${item.name} (${amountToBuy} ${item.unit})\n`
+      })
+      text += "\n"
+    })
+
+    if (navigator.share) {
+      navigator.share({
+        title: 'Lista de Compras',
+        text: text
+      }).catch((error) => console.log('Error compartiendo:', error))
     } else {
-      alert('Error al actualizar despensa: ' + res.error)
+      navigator.clipboard.writeText(text)
+      toast.success('Lista copiada al portapapeles', { description: 'Puedes pegarla en WhatsApp' })
     }
-    
-    setPurchasing(false)
   }
+
+  const glass3dClass = "backdrop-blur-md bg-white/60 dark:bg-slate-900/60 border border-white/80 dark:border-slate-700/60 shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.4)]"
 
   return (
     <div className="mx-auto max-w-md p-4 pb-28">
-      <header className="mb-6 mt-4 flex items-center gap-3">
-        <Link href="/pantry" className="rounded-full bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/60 dark:border-slate-700/60 p-2 text-gray-700 dark:text-gray-200 shadow-sm transition-all hover:bg-white/80 dark:hover:bg-slate-700">
-          <ArrowLeft size={20} />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm flex items-center gap-2">
-            Lista de Compras <ShoppingCart size={22} className="text-indigo-500 dark:text-indigo-400"/>
-          </h1>
-          <p className="text-sm text-gray-600 dark:text-gray-300">Ajusta lo que realmente compraste</p>
+      
+      <header className="mb-6 mt-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link 
+            href="/pantry" 
+            className={`flex h-10 w-10 items-center justify-center rounded-xl text-gray-700 dark:text-gray-200 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95 ${glass3dClass}`}
+          >
+            <ArrowLeft size={20} />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm">Compras</h1>
+            <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
+              {items.length} {items.length === 1 ? 'producto' : 'productos'} por reponer
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button
+            onClick={handleShare}
+            className={`flex h-10 w-10 items-center justify-center rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95 ${glass3dClass}`}
+            title="Compartir por WhatsApp"
+          >
+            <Share2 size={18} />
+          </button>
         </div>
       </header>
 
@@ -130,76 +163,66 @@ export default function ShoppingListPage() {
           <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-3xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-lg border border-white/60 dark:border-slate-700/60 p-8 text-center shadow-[0_8px_32px_0_rgba(31,38,135,0.07)]">
-          <PartyPopper className="mx-auto mb-3 text-emerald-400" size={48} />
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">¡Surtido completo!</h2>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">No hay productos que requieran reposición por ahora.</p>
+        <div className={`rounded-3xl p-8 text-center mt-12 ${glass3dClass}`}>
+          <ShoppingCart className="mx-auto mb-3 text-indigo-500" size={48} />
+          <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">Todo en orden</h2>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Tu despensa tiene niveles óptimos. No hay nada que comprar por ahora.
+          </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {items.map((item) => {
-            const isSelected = selectedItems.has(item.id)
-            const qtyToBuy = boughtQuantities[item.id] || 1
+        <div className="space-y-6">
+          {Object.entries(groupedItems).map(([category, categoryItems]) => (
+            <div key={category} className="space-y-3">
+              {/* Encabezado de Categoría */}
+              <h2 className="sticky top-4 z-20 flex items-center gap-2 font-bold text-gray-800 dark:text-gray-100 text-sm tracking-wide uppercase px-2 drop-shadow-sm">
+                <span className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-600 to-transparent"></span>
+                {category}
+                <span className="h-px flex-1 bg-gradient-to-r from-gray-300 dark:from-gray-600 via-gray-300 dark:via-gray-600 to-transparent"></span>
+              </h2>
 
-            return (
-              <div 
-                key={item.id}
-                onClick={() => toggleItem(item.id)}
-                className={`flex cursor-pointer items-center justify-between rounded-2xl backdrop-blur-lg border p-4 shadow-[0_4px_16px_0_rgba(31,38,135,0.05)] transition-all ${
-                  isSelected 
-                    ? 'bg-indigo-500/10 border-indigo-300/80 dark:border-indigo-500/50 dark:bg-indigo-500/20' 
-                    : 'bg-white/40 dark:bg-slate-800/40 border-white/60 dark:border-slate-700/60 hover:bg-white/50 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-gray-500'}>
-                    {isSelected ? <CheckCircle2 size={24} /> : <Circle size={24} />}
-                  </div>
-                  <div>
-                    <h3 className={`font-semibold transition-colors ${isSelected ? 'text-indigo-900 dark:text-indigo-300 line-through opacity-70' : 'text-gray-900 dark:text-white'}`}>
-                      {item.name}
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Actual: {item.current_quantity} {item.unit}
-                    </p>
-                  </div>
-                </div>
+              <div className="space-y-2.5">
+                {categoryItems.map((item) => {
+                  const isChecked = checkedItems.has(item.id)
+                  const amountToBuy = Math.max(1, (item.ideal_quantity || item.min_threshold + 1) - item.current_quantity)
 
-                <div className="flex items-center gap-1.5 rounded-xl bg-white/70 dark:bg-slate-900/50 border border-white/80 dark:border-slate-700/50 p-1 shadow-xs">
-                  <button
-                    onClick={(e) => handleQuantityChange(item.id, -1, e)}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 shadow-xs hover:bg-indigo-50 dark:hover:bg-slate-600 hover:text-indigo-600 dark:hover:text-indigo-300 active:scale-90 transition-all cursor-pointer"
-                  >
-                    <Minus size={14} />
-                  </button>
-                  
-                  <span className="min-w-8 text-center text-xs font-bold text-gray-800 dark:text-gray-200">
-                    +{qtyToBuy}
-                  </span>
+                  return (
+                    <div 
+                      key={item.id}
+                      onClick={() => toggleCheck(item.id)}
+                      className={`group flex items-center justify-between rounded-2xl p-4 transition-all duration-300 cursor-pointer ${glass3dClass} ${
+                        isChecked ? 'opacity-50 scale-[0.98]' : 'hover:scale-[1.01]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition-colors ${
+                          isChecked ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 dark:border-gray-600 text-transparent'
+                        }`}>
+                          {isChecked ? <Check size={14} strokeWidth={3} /> : <Circle size={14} />}
+                        </div>
+                        
+                        <div className={`transition-all ${isChecked ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'}`}>
+                          <h3 className="font-bold flex items-center gap-2 text-base">
+                            <span className="text-xl filter drop-shadow-sm">{getProductEmoji(item.name)}</span>
+                            {item.name}
+                          </h3>
+                        </div>
+                      </div>
 
-                  <button
-                    onClick={(e) => handleQuantityChange(item.id, 1, e)}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 shadow-xs hover:bg-indigo-50 dark:hover:bg-slate-600 hover:text-indigo-600 dark:hover:text-indigo-300 active:scale-90 transition-all cursor-pointer"
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
+                      <div className={`flex flex-col items-end transition-all ${isChecked ? 'opacity-50' : ''}`}>
+                        <span className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400">
+                          +{amountToBuy}
+                        </span>
+                        <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">
+                          {item.unit}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-            )
-          })}
-        </div>
-      )}
-
-      {items.length > 0 && (
-        <div className="fixed bottom-6 left-0 right-0 mx-auto max-w-md px-4">
-          <button 
-            onClick={handleCompletePurchase}
-            disabled={purchasing || selectedItems.size === 0}
-            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-indigo-500 to-purple-500 px-4 py-4 font-semibold text-white shadow-xl hover:shadow-2xl hover:from-indigo-600 hover:to-purple-600 disabled:opacity-50 disabled:scale-100 transition-all active:scale-[0.98] cursor-pointer"
-          >
-            {purchasing ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-            {purchasing ? 'Actualizando despensa...' : `Sumar comprados (${selectedItems.size})`}
-          </button>
+            </div>
+          ))}
         </div>
       )}
     </div>
