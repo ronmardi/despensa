@@ -74,6 +74,7 @@ export default function ProfilePage() {
       setSaving(true)
       const { error } = await supabase.from('profiles').upsert({
         id: userId,
+        email: email, // <-- Agregado para cumplir con la restricción de tu tabla
         full_name: fullName,
         avatar_url: avatarUrl,
         updated_at: new Date().toISOString(),
