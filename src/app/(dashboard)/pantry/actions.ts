@@ -16,7 +16,6 @@ export async function updateItemQuantityAction(itemId: string, newQuantity: numb
 
   if (!member) return { success: false, error: 'Sin hogar asignado' }
 
-  // 1. Actualización atómica asegurando que pertenece a su hogar (Defensa en profundidad)
   const { error: updateError } = await supabase
     .from('items')
     .update({ current_quantity: newQuantity })
@@ -25,7 +24,6 @@ export async function updateItemQuantityAction(itemId: string, newQuantity: numb
 
   if (updateError) return { success: false, error: updateError.message }
 
-  // 2. Registrar actividad de forma segura en el servidor
   const actionType = difference > 0 ? 'INCREASE' : 'DECREASE'
   const actionText = difference > 0 ? 'Agregó' : 'Consumió'
   const diffAbs = Math.abs(difference)
@@ -57,7 +55,6 @@ export async function deleteItemAction(itemId: string, itemName: string) {
 
   if (!member) return { success: false, error: 'Sin hogar asignado' }
 
-  // Borrado con verificación de household_id
   const { error: deleteError } = await supabase
     .from('items')
     .delete()
@@ -71,6 +68,49 @@ export async function deleteItemAction(itemId: string, itemName: string) {
     item_name: itemName,
     action_type: 'DELETE',
     details: `Eliminó el producto de la despensa.`,
+    user_email: user.email
+  }])
+
+  revalidatePath('/pantry')
+  revalidatePath('/history')
+  revalidatePath('/shopping-list')
+  return { success: true }
+}
+
+export async function editItemAction(
+  itemId: string,
+  data: { name: string; category: string; unit: string; min_threshold: number }
+) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'No autorizado' }
+
+  const { data: member } = await supabase
+    .from('household_members')
+    .select('household_id')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member) return { success: false, error: 'Sin hogar asignado' }
+
+  const { error: updateError } = await supabase
+    .from('items')
+    .update({
+      name: data.name,
+      category: data.category,
+      unit: data.unit,
+      min_threshold: data.min_threshold
+    })
+    .eq('id', itemId)
+    .eq('household_id', member.household_id)
+
+  if (updateError) return { success: false, error: updateError.message }
+
+  await supabase.from('activity_logs').insert([{
+    household_id: member.household_id,
+    item_name: data.name,
+    action_type: 'UPDATE',
+    details: `Editó el producto (Nombre: ${data.name}, Cat: ${data.category}, Unidad: ${data.unit})`,
     user_email: user.email
   }])
 

@@ -4,9 +4,11 @@ import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Minus, Package, AlertTriangle, Trash2, ShoppingCart, Users, LogOut, Search, X, Clock, User } from 'lucide-react'
+import { Plus, Minus, Package, AlertTriangle, Trash2, ShoppingCart, Users, LogOut, Search, X, Clock, User, Pencil } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { updateItemQuantityAction, deleteItemAction } from './actions'
+import { toast } from 'sonner'
+import { EditProductModal } from '@/components/EditProductModal'
 
 interface PantryItem {
   id: string
@@ -58,6 +60,7 @@ export default function PantryPage() {
   const [selectedCategory, setSelectedCategory] = useState('Todas')
   const [householdId, setHouseholdId] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string>('')
+  const [editingItem, setEditingItem] = useState<PantryItem | null>(null)
 
   useEffect(() => {
     async function loadPantryItems() {
@@ -109,50 +112,75 @@ export default function PantryPage() {
 
     const newQuantity = Math.max(0, currentItem.current_quantity + delta)
 
-    // Actualización visual rápida (optimista)
     setItems((prevItems) =>
       prevItems.map((item) => (item.id === id ? { ...item, current_quantity: newQuantity } : item))
     )
 
-    // Ejecuta la seguridad en el servidor (esto también registra el log en la base de datos)
     const res = await updateItemQuantityAction(id, newQuantity, currentItem.name, delta)
     
     if (!res.success) {
-      alert('Error al actualizar: ' + res.error)
-      // Revierte si falla
+      toast.error(`Error al actualizar ${currentItem.name}`, { description: res.error })
       setItems((prevItems) =>
         prevItems.map((item) => (item.id === id ? { ...item, current_quantity: currentItem.current_quantity } : item))
       )
     }
   }
 
-  const handleDeleteItem = async (id: string) => {
+  const handleDeleteItem = (id: string) => {
     const itemToDelete = items.find((i) => i.id === id)
     if (!itemToDelete) return
-    if (!confirm('¿Seguro que quieres eliminar este producto?')) return
 
-    // Eliminación visual rápida
-    const previousItems = [...items]
     setItems((prev) => prev.filter((item) => item.id !== id))
 
-    // Ejecuta en el servidor (esto también registra la eliminación en el log)
-    const res = await deleteItemAction(id, itemToDelete.name)
-    
-    if (!res.success) {
-      alert('Error al eliminar: ' + res.error)
-      setItems(previousItems) // Revierte si falla
-    }
+    let isUndone = false
+
+    toast.success(`"${itemToDelete.name}" eliminado`, {
+      action: {
+        label: 'Deshacer',
+        onClick: () => {
+          isUndone = true
+          setItems((prev) => [...prev, itemToDelete])
+          toast.info('Eliminación cancelada')
+        },
+      },
+      onDismiss: async () => {
+        if (!isUndone) {
+          const res = await deleteItemAction(id, itemToDelete.name)
+          if (!res.success) {
+            toast.error('Error al borrar en el servidor')
+            setItems((prev) => [...prev, itemToDelete])
+          }
+        }
+      },
+      duration: 4000,
+    })
   }
 
   const handleSignOut = async () => {
-    if (!confirm('¿Quieres cerrar la sesión activa?')) return
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
+    toast('¿Quieres cerrar sesión?', {
+      action: {
+        label: 'Confirmar',
+        onClick: async () => {
+          await supabase.auth.signOut()
+          router.push('/login')
+          router.refresh()
+        }
+      }
+    })
   }
 
   return (
     <div className="mx-auto max-w-md p-4 pb-28">
+      {editingItem && (
+        <EditProductModal 
+          item={editingItem} 
+          onClose={() => setEditingItem(null)}
+          onSuccess={(updated) => {
+            setItems((prev) => prev.map((i) => i.id === updated.id ? updated : i))
+          }}
+        />
+      )}
+
       <header className="mb-4 mt-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm">Mi Despensa</h1>
@@ -293,7 +321,7 @@ export default function PantryPage() {
                   <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{item.category}</p>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5 rounded-xl bg-white/60 dark:bg-slate-900/50 border border-white/80 dark:border-slate-700/50 p-1 shadow-inner">
                     <button
                       onClick={() => handleQuantityChange(item.id, -1)}
@@ -315,8 +343,17 @@ export default function PantryPage() {
                   </div>
 
                   <button
+                    onClick={() => setEditingItem(item)}
+                    className="p-1.5 text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                    title="Editar producto"
+                  >
+                    <Pencil size={18} />
+                  </button>
+
+                  <button
                     onClick={() => handleDeleteItem(item.id)}
                     className="p-1.5 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer"
+                    title="Eliminar producto"
                   >
                     <Trash2 size={18} />
                   </button>
