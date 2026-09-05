@@ -6,11 +6,9 @@ import { revalidatePath } from 'next/cache'
 export async function getHouseholdData() {
   const supabase = await createClient()
 
-  // 1. Obtener el usuario autenticado
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  // 2. Buscar la membresía del usuario
   const { data: member } = await supabase
     .from('household_members')
     .select('household_id, role')
@@ -19,7 +17,6 @@ export async function getHouseholdData() {
 
   if (!member) return null
 
-  // 3. Obtener los detalles del hogar
   const { data: household } = await supabase
     .from('households')
     .select('*')
@@ -28,10 +25,9 @@ export async function getHouseholdData() {
 
   if (!household) return null
 
-  // 4. Obtener todos los miembros vinculados
   const { data: members } = await supabase
     .from('household_members')
-    .select('*')
+    .select('*, profiles(full_name, avatar_url)')
     .eq('household_id', member.household_id)
 
   return {
@@ -45,44 +41,68 @@ export async function getHouseholdData() {
 
 export async function joinHouseholdAction(inviteCode: string) {
   const supabase = await createClient()
-
-  // 1. Verificar sesión activa
   const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) {
-    return { success: false, error: 'Sesión no válida. Vuelve a iniciar sesión.' }
-  }
+  if (authError || !user) return { success: false, error: 'Sesión no válida.' }
 
   const cleanCode = inviteCode.trim().toUpperCase()
 
-  // 2. Validar código de invitación
   const { data: household, error: householdError } = await supabase
     .from('households')
     .select('id')
     .eq('invite_code', cleanCode)
     .single()
 
-  if (householdError || !household) {
-    return { success: false, error: 'El código de invitación no existe o es inválido.' }
-  }
+  if (householdError || !household) return { success: false, error: 'Código inválido.' }
 
-  // 3. Limpiar vinculaciones previas
-  await supabase
-    .from('household_members')
-    .delete()
-    .eq('user_id', user.id)
+  await supabase.from('household_members').delete().eq('user_id', user.id)
 
-  // 4. Vincular al nuevo hogar
   const { error: joinError } = await supabase
     .from('household_members')
-    .insert([{
-      household_id: household.id,
-      user_id: user.id,
-      role: 'member'
-    }])
+    .insert([{ household_id: household.id, user_id: user.id, role: 'member' }])
 
-  if (joinError) {
-    return { success: false, error: joinError.message }
-  }
+  if (joinError) return { success: false, error: joinError.message }
+
+  revalidatePath('/pantry')
+  revalidatePath('/household')
+  return { success: true }
+}
+
+export async function createHouseholdAction(name: string = 'Mi Despensa') {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Sesión no válida.' }
+
+  // Generar código aleatorio de 6 caracteres
+  const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+
+  const { data: newHousehold, error: hError } = await supabase
+    .from('households')
+    .insert([{ name, invite_code: inviteCode }])
+    .select()
+    .single()
+
+  if (hError || !newHousehold) return { success: false, error: hError?.message }
+
+  await supabase.from('household_members').delete().eq('user_id', user.id)
+
+  const { error: joinError } = await supabase
+    .from('household_members')
+    .insert([{ household_id: newHousehold.id, user_id: user.id, role: 'admin' }])
+
+  if (joinError) return { success: false, error: joinError.message }
+
+  revalidatePath('/pantry')
+  revalidatePath('/household')
+  return { success: true }
+}
+
+export async function leaveHouseholdAction() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Sesión no válida.' }
+
+  const { error } = await supabase.from('household_members').delete().eq('user_id', user.id)
+  if (error) return { success: false, error: error.message }
 
   revalidatePath('/pantry')
   revalidatePath('/household')
