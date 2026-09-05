@@ -11,6 +11,7 @@ interface ActivityLog {
   action_type: 'ADD' | 'INCREASE' | 'DECREASE' | 'DELETE'
   details: string
   user_email: string
+  user_name?: string // <-- Agregado para almacenar el nombre traducido
   created_at: string
 }
 
@@ -39,7 +40,36 @@ export default function HistoryPage() {
           .order('created_at', { ascending: false })
           .limit(50)
 
-        if (activityLogs) setLogs(activityLogs)
+        if (activityLogs) {
+          // 1. Extraer todos los correos únicos del historial
+          const uniqueEmails = Array.from(new Set(activityLogs.map(log => log.user_email).filter(Boolean)))
+          
+          let emailToNameMap: Record<string, string> = {}
+          
+          // 2. Buscar los nombres de esos correos en la tabla profiles
+          if (uniqueEmails.length > 0) {
+            const { data: profiles } = await supabase
+              .from('profiles')
+              .select('email, full_name')
+              .in('email', uniqueEmails)
+              
+            if (profiles) {
+              profiles.forEach(profile => {
+                if (profile.full_name) {
+                  emailToNameMap[profile.email] = profile.full_name
+                }
+              })
+            }
+          }
+
+          // 3. Unir el nombre al registro (con fallback amigable si no tienen nombre)
+          const logsWithNames = activityLogs.map(log => ({
+            ...log,
+            user_name: emailToNameMap[log.user_email] || log.user_email.split('@')[0]
+          }))
+
+          setLogs(logsWithNames)
+        }
       }
       setLoading(false)
     }
@@ -116,7 +146,7 @@ export default function HistoryPage() {
                 </div>
                 <p className="text-xs text-gray-600 dark:text-gray-300 mb-2">{log.details}</p>
                 <div className="flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-500 border-t border-gray-100 dark:border-slate-700/50 pt-2">
-                  <span>{log.user_email}</span>
+                  <span className="font-medium capitalize">{log.user_name || log.user_email}</span>
                   <span>{formatDate(log.created_at)}</span>
                 </div>
               </div>
