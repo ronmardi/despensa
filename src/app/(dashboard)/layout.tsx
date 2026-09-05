@@ -2,12 +2,11 @@ import { Toaster } from 'sonner'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative min-h-screen w-full bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300 overflow-x-hidden">
-      {/* Esferas de luz radial para el efecto de refracción en el cristal */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-indigo-500/25 dark:bg-indigo-600/20 blur-3xl" />
-        <div className="absolute top-1/3 -right-32 h-96 w-96 rounded-full bg-purple-500/25 dark:bg-purple-600/20 blur-3xl" />
-        <div className="absolute -bottom-32 left-1/4 h-96 w-96 rounded-full bg-blue-500/20 dark:bg-blue-600/15 blur-3xl" />
+    <div className="relative min-h-full w-full bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300">
+      {/* Esferas de luz suave */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-indigo-500/20 dark:bg-indigo-600/15 blur-3xl" />
+        <div className="absolute top-1/3 -right-32 h-96 w-96 rounded-full bg-purple-500/20 dark:bg-purple-600/15 blur-3xl" />
       </div>
 
       <main className="relative z-10">
