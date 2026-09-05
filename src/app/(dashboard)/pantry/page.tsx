@@ -219,50 +219,50 @@ export default function PantryPage() {
         />
       )}
 
-      <header className="mb-6 mt-4 flex items-center justify-between">
-        <div>
-          {/* AQUÍ ESTÁ EL CAMBIO: Muestra el nombre dinámico del hogar */}
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm truncate max-w-50">
-          {householdName}
+      {/* Cabecera optimizada con ancho flexible para el nombre del hogar */}
+      <header className="mb-6 mt-4 flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm truncate">
+            {householdName}
           </h1>
           <p className="text-xs font-medium text-gray-600 dark:text-gray-300">Inventario interactivo</p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
           <ThemeToggle />
           
-          <div className={`flex items-center gap-1 p-1 rounded-2xl ${glass3dClass}`}>
+          <div className={`flex items-center gap-0.5 sm:gap-1 p-1 rounded-2xl ${glass3dClass}`}>
             <Link 
               href="/profile" 
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95"
+              className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95"
               title="Mi Perfil"
             >
               <User size={18} />
             </Link>
             <Link 
               href="/history" 
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-700 dark:text-gray-200 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95"
+              className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl text-gray-700 dark:text-gray-200 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95"
               title="Historial"
             >
               <Clock size={18} />
             </Link>
             <Link 
               href="/household" 
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-700 dark:text-gray-200 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95"
+              className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl text-gray-700 dark:text-gray-200 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95"
               title="Hogar"
             >
               <Users size={18} />
             </Link>
             <Link 
               href="/shopping-list" 
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95"
+              className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95"
               title="Lista de Compras"
             >
               <ShoppingCart size={18} />
             </Link>
             <button 
               onClick={handleSignOut}
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-red-500 hover:bg-red-500/10 transition-all active:scale-95 cursor-pointer"
+              className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl text-red-500 hover:bg-red-500/10 transition-all active:scale-95 cursor-pointer"
               title="Cerrar Sesión"
             >
               <LogOut size={18} />

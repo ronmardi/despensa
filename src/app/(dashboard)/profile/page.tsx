@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, User, Camera, Save, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { FooterCredit } from '@/components/FooterCredit'
 
 export default function ProfilePage() {
   const supabase = createClient()
@@ -53,7 +55,7 @@ export default function ProfilePage() {
 
       // 1. Validación de tamaño (Máximo 15MB)
       if (file.size > 15 * 1024 * 1024) {
-        alert('La imagen es demasiado grande. El tamaño máximo es 15MB.')
+        toast.error('La imagen es demasiado grande. El tamaño máximo es 15MB.')
         setUploading(false)
         return
       }
@@ -61,10 +63,12 @@ export default function ProfilePage() {
       // 2. Validación de tipo MIME
       const validTypes = ['image/jpeg', 'image/png', 'image/webp']
       if (!validTypes.includes(file.type)) {
-        alert('Formato no válido. Solo se permiten imágenes JPG, PNG o WEBP.')
+        toast.error('Formato no válido. Solo se permiten imágenes JPG, PNG o WEBP.')
         setUploading(false)
         return
       }
+
+      toast.info('Subiendo foto...')
 
       const fileExt = file.name.split('.').pop()
       const fileName = `${userId}-${Math.random()}.${fileExt}`
@@ -80,9 +84,10 @@ export default function ProfilePage() {
       // Obtener URL pública
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath)
       setAvatarUrl(data.publicUrl)
+      toast.success('Foto subida con éxito')
       
     } catch (error: any) {
-      alert('Error subiendo imagen: ' + error.message)
+      toast.error('Error subiendo imagen', { description: error.message })
     } finally {
       setUploading(false)
     }
@@ -100,14 +105,16 @@ export default function ProfilePage() {
       })
 
       if (error) throw error
-      alert('¡Perfil actualizado con éxito!')
+      toast.success('¡Perfil actualizado con éxito!')
       router.refresh()
     } catch (error: any) {
-      alert('Error guardando perfil: ' + error.message)
+      toast.error('Error guardando perfil', { description: error.message })
     } finally {
       setSaving(false)
     }
   }
+
+  const glass3dClass = "backdrop-blur-md bg-white/60 dark:bg-slate-900/60 border border-white/80 dark:border-slate-700/60 shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.4)]"
 
   if (loading) return (
     <div className="flex h-screen items-center justify-center">
@@ -116,66 +123,81 @@ export default function ProfilePage() {
   )
 
   return (
-    <div className="mx-auto max-w-md p-4 pb-28">
-      <header className="mb-6 mt-4 flex items-center gap-3">
-        <Link href="/pantry" className="rounded-full bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/60 dark:border-slate-700/60 p-2 text-gray-700 dark:text-gray-200 shadow-sm transition-all hover:bg-white/80 active:scale-95">
-          <ArrowLeft size={20} />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm flex items-center gap-2">
-            Mi Perfil <User size={22} className="text-indigo-500" />
-          </h1>
+    <div className="mx-auto max-w-md p-4 pb-28 min-h-screen flex flex-col">
+      
+      <header className="mb-6 mt-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link 
+            href="/pantry" 
+            className={`flex h-10 w-10 items-center justify-center rounded-xl text-gray-700 dark:text-gray-200 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95 ${glass3dClass}`}
+          >
+            <ArrowLeft size={20} />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm flex items-center gap-2">
+              Mi Perfil <User size={20} className="text-indigo-500" />
+            </h1>
+            <p className="text-xs font-medium text-gray-600 dark:text-gray-300">Ajustes de cuenta</p>
+          </div>
         </div>
       </header>
 
-      <div className="space-y-6 rounded-3xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-lg border border-white/60 dark:border-slate-700/60 p-6 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)]">
+      <div className={`space-y-6 rounded-3xl p-6 ${glass3dClass}`}>
         
-        {/* Foto de Perfil */}
+        {/* Foto de Perfil con encuadre automático */}
         <div className="flex flex-col items-center gap-4">
-          <div className="relative h-28 w-28 overflow-hidden rounded-full border-4 border-white/80 dark:border-slate-700 shadow-lg bg-white/50 dark:bg-slate-800 flex items-center justify-center">
+          <div className="relative h-28 w-28 overflow-hidden rounded-full border-4 border-white/80 dark:border-slate-700 shadow-lg bg-white/50 dark:bg-slate-800 flex items-center justify-center group">
             {uploading ? (
               <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
             ) : avatarUrl ? (
-              <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+              <img 
+                src={avatarUrl} 
+                alt="Avatar" 
+                className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" 
+              />
             ) : (
               <User size={40} className="text-gray-400" />
             )}
             
-            <label className="absolute bottom-0 left-0 right-0 flex h-1/3 cursor-pointer items-center justify-center bg-black/40 text-white transition-all hover:bg-black/60">
+            <label className="absolute bottom-0 left-0 right-0 flex h-1/3 cursor-pointer items-center justify-center bg-black/50 text-white opacity-90 transition-all hover:bg-black/70 active:bg-black/80 backdrop-blur-xs">
               <Camera size={16} />
               <input 
                 type="file" 
-                accept="image/*" 
+                accept="image/jpeg, image/png, image/webp" 
                 onChange={uploadAvatar} 
                 disabled={uploading}
                 className="hidden" 
               />
             </label>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Toca la cámara para cambiar foto (Max 15MB)</p>
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Toca la cámara para cambiar foto (Max 15MB)</p>
         </div>
 
         {/* Formulario */}
-        <div className="space-y-4 pt-4 border-t border-white/60 dark:border-slate-700/60">
+        <div className="space-y-4 pt-4 border-t border-black/5 dark:border-white/5">
           <div>
-            <label className="block text-sm font-medium text-gray-800 dark:text-gray-200">Correo Electrónico</label>
+            <label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+              Correo Electrónico
+            </label>
             <input 
               type="email" 
               disabled 
               value={email}
-              className="mt-1 block w-full rounded-xl bg-gray-100/50 dark:bg-slate-900/50 border border-white/40 dark:border-slate-700/40 px-4 py-3 text-gray-500 dark:text-gray-400 shadow-inner"
+              className="block w-full rounded-xl bg-slate-200/50 dark:bg-slate-950/50 border border-black/5 dark:border-white/5 px-4 py-3 text-gray-500 dark:text-gray-400 shadow-inner text-sm"
             />
-            <p className="text-[10px] mt-1 text-gray-500">El correo no se puede cambiar.</p>
+            <p className="text-[10px] mt-1.5 text-gray-500 dark:text-gray-400">El correo electrónico no se puede modificar.</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-800 dark:text-gray-200">Nombre de Usuario</label>
+            <label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+              Nombre de Usuario
+            </label>
             <input 
               type="text" 
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Ej: Ronald Martinez"
-              className="mt-1 block w-full rounded-xl bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm border border-white/40 dark:border-slate-700/40 px-4 py-3 text-gray-900 dark:text-white focus:bg-white/80 dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 shadow-inner transition-all"
+              className="block w-full rounded-xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border border-black/10 dark:border-white/10 px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-inner transition-all text-sm"
             />
           </div>
         </div>
@@ -183,12 +205,16 @@ export default function ProfilePage() {
         <button 
           onClick={saveProfile}
           disabled={saving || uploading}
-          className="mt-6 w-full flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-indigo-500 to-purple-500 px-4 py-4 font-semibold text-white shadow-lg hover:shadow-xl hover:from-indigo-600 hover:to-purple-600 disabled:opacity-50 transition-all active:scale-[0.98] cursor-pointer"
+          className="mt-6 w-full flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-indigo-500 to-purple-500 px-4 py-3.5 font-bold text-white shadow-lg hover:shadow-xl hover:opacity-90 disabled:opacity-50 transition-all active:scale-[0.98] cursor-pointer"
         >
-          {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save size={20} />}
+          {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save size={18} />}
           {saving ? 'Guardando...' : 'Guardar Perfil'}
         </button>
+      </div>
 
+      {/* Footer de Raccoon Lab */}
+      <div className="mt-auto pt-8 pb-4">
+        <FooterCredit />
       </div>
     </div>
   )
