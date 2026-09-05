@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { FooterCredit } from '@/components/FooterCredit'
 import { ShoppingCart, Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
@@ -61,12 +62,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative">
-      <div className="absolute top-6 right-6">
+    <div className="min-h-screen flex flex-col items-center justify-between p-4 relative">
+      <div className="absolute top-6 right-6 z-20">
         <ThemeToggle />
       </div>
 
-      <div className="w-full max-w-sm rounded-3xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-lg border border-white/60 dark:border-slate-700/60 p-8 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)]">
+      <div className="my-auto w-full max-w-sm rounded-3xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-lg border border-white/60 dark:border-slate-700/60 p-8 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)]">
         
         <div className="text-center mb-6 flex flex-col items-center">
           <div className="bg-indigo-500/10 dark:bg-indigo-500/20 p-3 rounded-full mb-3 border border-indigo-500/20">
@@ -201,6 +202,8 @@ export default function LoginPage() {
         </div>
         
       </div>
-    </div>
+
+      <FooterCredit />
+    </div> 
   )
 }

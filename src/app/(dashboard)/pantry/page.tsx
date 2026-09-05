@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -62,6 +62,10 @@ export default function PantryPage() {
   const [userEmail, setUserEmail] = useState<string>('')
   const [editingItem, setEditingItem] = useState<PantryItem | null>(null)
 
+  // Referencias para controlar el debounce individual por producto
+  const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({})
+  const pendingDeltas = useRef<{ [key: string]: number }>({})
+
   useEffect(() => {
     async function loadPantryItems() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -106,24 +110,44 @@ export default function PantryPage() {
     })
   }, [items, searchTerm, selectedCategory])
 
-  const handleQuantityChange = async (id: string, delta: number) => {
+  // Lógica de cambio de cantidad con debounce de 500ms
+  const handleQuantityChange = (id: string, delta: number) => {
     const currentItem = items.find((i) => i.id === id)
     if (!currentItem) return
 
-    const newQuantity = Math.max(0, currentItem.current_quantity + delta)
+    const previousQuantity = currentItem.current_quantity
+    const newQuantity = Math.max(0, previousQuantity + delta)
 
+    // 1. Actualización de UI instantánea
     setItems((prevItems) =>
       prevItems.map((item) => (item.id === id ? { ...item, current_quantity: newQuantity } : item))
     )
 
-    const res = await updateItemQuantityAction(id, newQuantity, currentItem.name, delta)
-    
-    if (!res.success) {
-      toast.error(`Error al actualizar ${currentItem.name}`, { description: res.error })
-      setItems((prevItems) =>
-        prevItems.map((item) => (item.id === id ? { ...item, current_quantity: currentItem.current_quantity } : item))
-      )
+    // 2. Acumular el cambio
+    pendingDeltas.current[id] = (pendingDeltas.current[id] || 0) + delta
+
+    // 3. Reiniciar temporizador si se presiona de nuevo antes de 500ms
+    if (debounceTimers.current[id]) {
+      clearTimeout(debounceTimers.current[id])
     }
+
+    debounceTimers.current[id] = setTimeout(async () => {
+      const totalDelta = pendingDeltas.current[id]
+      delete pendingDeltas.current[id]
+      delete debounceTimers.current[id]
+
+      if (totalDelta === 0) return
+
+      // 4. Sincronizar en servidor tras 500ms de inactividad
+      const res = await updateItemQuantityAction(id, newQuantity, currentItem.name, totalDelta)
+
+      if (!res.success) {
+        toast.error(`Error al actualizar ${currentItem.name}`, { description: res.error })
+        setItems((prevItems) =>
+          prevItems.map((item) => (item.id === id ? { ...item, current_quantity: previousQuantity } : item))
+        )
+      }
+    }, 500)
   }
 
   const handleDeleteItem = (id: string) => {
@@ -169,7 +193,6 @@ export default function PantryPage() {
     })
   }
 
-  // Estilo Liquid Glass 3D con luz de bisel superior e interior
   const glass3dClass = "backdrop-blur-md bg-white/60 dark:bg-slate-900/60 border border-white/80 dark:border-slate-700/60 shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.4)]"
 
   return (
@@ -254,7 +277,6 @@ export default function PantryPage() {
             )}
           </div>
 
-          {/* Carrusel de categorías con margen ajustado para evitar recortes */}
           <div className="flex gap-2 overflow-x-auto py-2 px-1 -mx-1 no-scrollbar items-center">
             {categories.map((cat) => {
               const isActive = selectedCategory.toLowerCase() === cat.toLowerCase()
@@ -371,7 +393,6 @@ export default function PantryPage() {
         </div>
       )}
 
-      {/* Botón Flotante con Profundidad 3D */}
       <Link 
         href="/pantry/add"
         className="fixed bottom-7 right-7 flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-tr from-indigo-600 via-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all duration-200"
