@@ -65,7 +65,7 @@ export default function HistoryPage() {
           // 3. Unir el nombre al registro (con fallback amigable si no tienen nombre)
           const logsWithNames = activityLogs.map(log => ({
             ...log,
-            user_name: emailToNameMap[log.user_email] || log.user_email.split('@')[0]
+            user_name: emailToNameMap[log.user_email] || log.user_email?.split('@')[0] || 'Usuario'
           }))
 
           setLogs(logsWithNames)
