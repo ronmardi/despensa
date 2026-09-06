@@ -7,12 +7,22 @@ import { MusicPlayer } from '@/components/MusicPlayer'
 export const metadata: Metadata = {
   title: 'Mi Despensa',
   description: 'Gestión inteligente de despensa',
+  applicationName: 'Mi Despensa',
+  appleWebApp: {
+    capable: true,
+    title: 'Mi Despensa',
+    statusBarStyle: 'black-translucent',
+  },
+  formatDetection: {
+    telephone: false,
+  },
 }
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  userScalable: false, // Fundamental para que se sienta como App nativa (evita el zoom)
   viewportFit: 'cover',
   themeColor: [
     { media: '(prefers-color-scheme: dark)', color: '#020617' },
