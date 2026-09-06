@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Minus, Package, AlertTriangle, Trash2, ShoppingCart, Users, LogOut, Search, X, Clock, User, Pencil } from 'lucide-react'
+import { Plus, Minus, Package, AlertTriangle, Trash2, LogOut, Search, X, User, Pencil } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { updateItemQuantityAction, deleteItemAction } from './actions'
 import { toast } from 'sonner'
@@ -23,7 +23,6 @@ interface PantryItem {
 
 function getProductEmoji(name: string): string {
   const n = name.toLowerCase()
-  // Comida y Despensa
   if (n.includes('arroz')) return '🍚'
   if (n.includes('leche')) return '🥛'
   if (n.includes('pan')) return '🍞'
@@ -44,7 +43,6 @@ function getProductEmoji(name: string): string {
   if (n.includes('yogur') || n.includes('cereal')) return '🥣'
   if (n.includes('helado')) return '🍨'
   
-  // Bebidas
   if (n.includes('agua')) return '💧'
   if (n.includes('jugo')) return '🧃'
   if (n.includes('bebida') || n.includes('soda') || n.includes('gaseosa')) return '🥤'
@@ -53,7 +51,6 @@ function getProductEmoji(name: string): string {
   if (n.includes('cafe') || n.includes('café')) return '☕'
   if (n.includes('te') || n.includes('té')) return '🍵'
 
-  // Limpieza e Higiene
   if (n.includes('cloro') || n.includes('desinfectante') || n.includes('limpiador')) return '🧹'
   if (n.includes('shampoo') || n.includes('champú') || n.includes('acondicionador')) return '🧴'
   if (n.includes('jabon') || n.includes('jabón') || n.includes('detergente') || n.includes('lava')) return '🧼'
@@ -73,10 +70,10 @@ export default function PantryPage() {
   const [householdName, setHouseholdName] = useState<string>('Mi Despensa')
   const [userEmail, setUserEmail] = useState<string>('')
   const [userName, setUserName] = useState<string>('')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [editingItem, setEditingItem] = useState<PantryItem | null>(null)
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false)
 
-  // Referencias para controlar el debounce individual por producto
   const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({})
   const pendingDeltas = useRef<{ [key: string]: number }>({})
 
@@ -89,6 +86,21 @@ export default function PantryPage() {
     const nameFromAuth = user.user_metadata?.full_name || user.email?.split('@')[0] || ''
     setUserName(nameFromAuth)
 
+    // Cargar avatar del usuario si existe
+    if (user.user_metadata?.avatar_url) {
+      setAvatarUrl(user.user_metadata.avatar_url)
+    } else {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .single()
+      
+      if (profile?.avatar_url) {
+        setAvatarUrl(profile.avatar_url)
+      }
+    }
+
     const { data: members } = await supabase
       .from('household_members')
       .select('household_id')
@@ -99,7 +111,6 @@ export default function PantryPage() {
       const hId = members[0].household_id
       setHouseholdId(hId)
 
-      // Obtener el nombre del hogar
       const { data: hhData } = await supabase
         .from('households')
         .select('name')
@@ -244,8 +255,8 @@ export default function PantryPage() {
         />
       )}
 
-      {/* Cabecera */}
-      <header className="mb-6 mt-4 flex items-center justify-between gap-2">
+      {/* Cabecera limpia y descongestionada */}
+      <header className="mb-6 mt-4 flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm truncate">
             {householdName}
@@ -256,35 +267,21 @@ export default function PantryPage() {
         <div className="flex items-center gap-1.5 shrink-0">
           <ThemeToggle />
           
-          <div className={`flex items-center gap-0.5 sm:gap-1 p-1 rounded-2xl ${glass3dClass}`}>
+          <div className={`flex items-center gap-1 p-1 rounded-2xl ${glass3dClass}`}>
             <Link 
               href="/profile" 
-              className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95"
+              className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl overflow-hidden hover:opacity-80 transition-all active:scale-95"
               title="Mi Perfil"
             >
-              <User size={18} />
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Perfil" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-indigo-600 dark:text-indigo-400">
+                  <User size={18} />
+                </div>
+              )}
             </Link>
-            <Link 
-              href="/history" 
-              className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl text-gray-700 dark:text-gray-200 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95"
-              title="Historial"
-            >
-              <Clock size={18} />
-            </Link>
-            <Link 
-              href="/household" 
-              className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl text-gray-700 dark:text-gray-200 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95"
-              title="Hogar"
-            >
-              <Users size={18} />
-            </Link>
-            <Link 
-              href="/shopping-list" 
-              className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95"
-              title="Lista de Compras"
-            >
-              <ShoppingCart size={18} />
-            </Link>
+
             <button 
               onClick={handleSignOut}
               className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl text-red-500 hover:bg-red-500/10 transition-all active:scale-95 cursor-pointer"
@@ -317,7 +314,6 @@ export default function PantryPage() {
             )}
           </div>
 
-          {/* Categorías con difuminado suave en el borde derecho (scroll cue) */}
           <div className="flex gap-2 overflow-x-auto py-2 px-1 -mx-1 no-scrollbar items-center mask-[linear-gradient(to_right,black_88%,transparent)]">
             {categories.map((cat) => {
               const isActive = selectedCategory.toLowerCase() === cat.toLowerCase()
@@ -327,7 +323,7 @@ export default function PantryPage() {
                   onClick={() => setSelectedCategory(cat)}
                   className={`shrink-0 rounded-xl px-4 py-2 text-xs font-bold capitalize transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-linear-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
+                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
                       : `${glass3dClass} text-gray-700 dark:text-gray-300 hover:bg-white/80 dark:hover:bg-slate-800`
                   }`}
                 >
@@ -446,7 +442,7 @@ export default function PantryPage() {
       {/* Botón Flotante (+ / FAB) */}
       <Link 
         href="/pantry/add"
-        className="fixed bottom-7 right-7 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-tr from-indigo-600 via-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all duration-200"
+        className="fixed bottom-7 right-7 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all duration-200"
       >
         <Plus size={30} />
       </Link>
