@@ -76,6 +76,7 @@ export default function PantryPage() {
 
   const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({})
   const pendingDeltas = useRef<{ [key: string]: number }>({})
+  const pendingDeletions = useRef<{ [key: string]: NodeJS.Timeout }>({})
 
   const loadPantryItems = useCallback(async () => {
     setLoading(true)
@@ -188,31 +189,42 @@ export default function PantryPage() {
     }, 500)
   }
 
+  // Manejo de eliminación con borrado diferido confiable
   const handleDeleteItem = (id: string) => {
     const itemToDelete = items.find((i) => i.id === id)
     if (!itemToDelete) return
 
+    // Eliminar de la UI de inmediato
     setItems((prev) => prev.filter((item) => item.id !== id))
 
-    let isUndone = false
+    // Limpiar cualquier temporizador previo si existía
+    if (pendingDeletions.current[id]) {
+      clearTimeout(pendingDeletions.current[id])
+    }
+
+    // Programar el borrado real en la base de datos tras 4 segundos
+    const timer = setTimeout(async () => {
+      delete pendingDeletions.current[id]
+      const res = await deleteItemAction(id, itemToDelete.name)
+      if (!res.success) {
+        toast.error(`Error al eliminar "${itemToDelete.name}" de la base de datos`)
+        setItems((prev) => [...prev, itemToDelete])
+      }
+    }, 4000)
+
+    pendingDeletions.current[id] = timer
 
     toast.success(`"${itemToDelete.name}" eliminado`, {
       action: {
         label: 'Deshacer',
         onClick: () => {
-          isUndone = true
-          setItems((prev) => [...prev, itemToDelete])
-          toast.info('Eliminación cancelada')
-        },
-      },
-      onDismiss: async () => {
-        if (!isUndone) {
-          const res = await deleteItemAction(id, itemToDelete.name)
-          if (!res.success) {
-            toast.error('Error al borrar en el servidor')
+          if (pendingDeletions.current[id]) {
+            clearTimeout(pendingDeletions.current[id])
+            delete pendingDeletions.current[id]
             setItems((prev) => [...prev, itemToDelete])
+            toast.info('Eliminación cancelada')
           }
-        }
+        },
       },
       duration: 4000,
     })
@@ -254,7 +266,7 @@ export default function PantryPage() {
         />
       )}
 
-      {/* Cabecera limpia y descongestionada */}
+      {/* Cabecera */}
       <header className="mb-6 mt-4 flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm truncate">
