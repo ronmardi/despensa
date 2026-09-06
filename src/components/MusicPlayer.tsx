@@ -48,9 +48,10 @@ export function MusicPlayer() {
 
   return (
     <div 
-      className={`fixed bottom-24 right-4 z-50 flex flex-col items-end transition-opacity duration-300 ${
+      className={`fixed right-4 z-50 flex flex-col items-end transition-all duration-300 ${
         isVisible ? 'opacity-100 pointer-events-none' : 'opacity-0 pointer-events-none'
       }`}
+      style={{ bottom: 'calc(5.5rem + env(safe-area-inset-bottom))' }}
     >
       <div
         className={`transition-all duration-300 ease-in-out pointer-events-auto origin-bottom-right mb-3 ${
