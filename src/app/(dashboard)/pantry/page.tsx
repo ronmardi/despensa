@@ -383,8 +383,8 @@ export default function PantryPage() {
                       <span className="text-sm font-extrabold text-gray-900 dark:text-white leading-none">
                         {item.current_quantity}
                       </span>
-                      <span className="text-[8px] font-medium text-gray-500 dark:text-gray-400 mt-0.5 uppercase tracking-wider truncate max-w-[45px]">
-                        {item.unit}
+                      <span className="text-[8px] font-medium text-gray-500 dark:text-gray-400 mt-0.5 uppercase tracking-wider truncate max-w-11.25">
+                      {item.unit}
                       </span>
                     </div>
 
