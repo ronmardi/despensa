@@ -70,7 +70,6 @@ export default function ShoppingListPage() {
 
           const initialQuantities: Record<string, number> = {}
           itemsToBuy.forEach(item => {
-            // CAMBIO: Ahora siempre inicia en 1 por defecto
             initialQuantities[item.id] = 1
           })
           setBuyQuantities(initialQuantities)
@@ -120,7 +119,19 @@ export default function ShoppingListPage() {
     toast.info('Generando tarjeta de lista...')
 
     try {
-      const dataUrl = await toPng(listRef.current, { cacheBust: true, pixelRatio: 2 })
+      const isDark = document.documentElement.classList.contains('dark')
+      
+      // Captura compatible con Mac / Safari asignando color de fondo explícito
+      const dataUrl = await toPng(listRef.current, { 
+        cacheBust: true, 
+        pixelRatio: 2,
+        backgroundColor: isDark ? '#020617' : '#f8fafc',
+        style: {
+          padding: '16px',
+          borderRadius: '24px'
+        }
+      })
+      
       const blob = await (await fetch(dataUrl)).blob()
       const file = new File([blob], 'lista-de-compras.png', { type: 'image/png' })
 
@@ -138,7 +149,7 @@ export default function ShoppingListPage() {
         link.click()
         toast.success('Imagen descargada')
       }
-    } catch (err) {
+    } catch (err: any) {
       toast.error('No se pudo generar la imagen')
     } finally {
       setSharing(false)
@@ -149,16 +160,16 @@ export default function ShoppingListPage() {
 
   return (
     <div className="mx-auto max-w-md p-4 pb-28">
-      <header className="mb-6 mt-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <header className="mb-6 mt-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3 min-w-0">
           <Link 
             href="/pantry" 
-            className={`flex h-10 w-10 items-center justify-center rounded-xl text-gray-700 dark:text-gray-200 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95 ${glass3dClass}`}
+            className={`flex h-10 w-10 items-center justify-center rounded-xl text-gray-700 dark:text-gray-200 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95 shrink-0 ${glass3dClass}`}
           >
             <ArrowLeft size={20} />
           </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm">Compras</h1>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm truncate">Compras</h1>
             <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
               {items.length} {items.length === 1 ? 'producto' : 'productos'} por reponer
             </p>
@@ -168,7 +179,7 @@ export default function ShoppingListPage() {
         <button
           onClick={handleShareImage}
           disabled={sharing || items.length === 0}
-          className={`flex h-10 px-3.5 items-center gap-2 rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 cursor-pointer ${glass3dClass}`}
+          className={`flex h-10 px-3.5 items-center gap-2 rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-white/80 dark:hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 cursor-pointer shrink-0 ${glass3dClass}`}
           title="Compartir tarjeta visual"
         >
           {sharing ? <Loader2 size={18} className="animate-spin" /> : <Share2 size={18} />}
@@ -189,10 +200,10 @@ export default function ShoppingListPage() {
           </p>
         </div>
       ) : (
-        <div ref={listRef} className="space-y-6 p-2 rounded-3xl bg-transparent">
+        <div ref={listRef} className="space-y-6">
           {Object.entries(groupedItems).map(([category, categoryItems]) => (
             <div key={category} className="space-y-3">
-              <h2 className="flex items-center gap-2 font-bold text-gray-800 dark:text-gray-100 text-xs tracking-wider uppercase px-2">
+              <h2 className="flex items-center gap-2 font-bold text-gray-800 dark:text-gray-100 text-[11px] tracking-wider uppercase px-1">
                 <span className="h-px flex-1 bg-linear-to-r from-transparent via-gray-300 dark:via-gray-700 to-transparent"></span>
                 {category}
                 <span className="h-px flex-1 bg-linear-to-r from-gray-300 dark:from-gray-700 via-gray-300 dark:via-gray-700 to-transparent"></span>
@@ -207,48 +218,50 @@ export default function ShoppingListPage() {
                     <div 
                       key={item.id}
                       onClick={() => toggleCheck(item.id)}
-                      className={`group flex items-center justify-between rounded-2xl p-4 transition-all duration-300 cursor-pointer ${glass3dClass} ${
+                      className={`group flex items-center justify-between gap-2 rounded-2xl p-4 transition-all duration-300 cursor-pointer ${glass3dClass} ${
                         isChecked ? 'opacity-50 scale-[0.98]' : 'hover:scale-[1.01]'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition-colors ${
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition-colors shrink-0 ${
                           isChecked ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 dark:border-gray-600 text-transparent'
                         }`}>
                           {isChecked ? <Check size={14} strokeWidth={3} /> : <Circle size={14} />}
                         </div>
                         
-                        <div className={`transition-all ${isChecked ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'}`}>
-                          <h3 className="font-bold flex items-center gap-2 text-base">
-                            <span className="text-xl filter drop-shadow-sm">{getProductEmoji(item.name)}</span>
-                            {item.name}
+                        <div className={`min-w-0 flex-1 transition-all ${isChecked ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'}`}>
+                          <h3 className="font-bold flex items-center gap-2 text-base truncate">
+                            <span className="text-xl filter drop-shadow-sm shrink-0">{getProductEmoji(item.name)}</span>
+                            <span className="truncate">{item.name}</span>
                           </h3>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1 rounded-xl bg-slate-200/50 dark:bg-slate-950/50 p-1 border border-black/5 dark:border-white/5 shadow-inner">
                           <button
                             onClick={(e) => handleBuyQuantityChange(e, item.id, -1)}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 shadow-xs hover:text-red-500 active:scale-90 transition-all cursor-pointer"
+                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 shadow-xs hover:text-red-500 active:scale-90 transition-all cursor-pointer shrink-0"
                           >
                             <Minus size={13} />
                           </button>
                           
-                          <span className="min-w-8 text-center text-xs font-extrabold text-indigo-600 dark:text-indigo-400">
-                            +{buyQty}
-                          </span>
+                          <div className="flex flex-col items-center justify-center min-w-10 px-1">
+                            <span className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400 leading-none">
+                              +{buyQty}
+                            </span>
+                            <span className="text-[8px] font-medium text-gray-500 dark:text-gray-400 mt-0.5 uppercase tracking-wider truncate max-w-11.25">
+                              {item.unit}
+                            </span>
+                          </div>
 
                           <button
                             onClick={(e) => handleBuyQuantityChange(e, item.id, 1)}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 shadow-xs hover:text-green-500 active:scale-90 transition-all cursor-pointer"
+                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 shadow-xs hover:text-green-500 active:scale-90 transition-all cursor-pointer shrink-0"
                           >
                             <Plus size={13} />
                           </button>
                         </div>
-                        <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400 min-w-8">
-                          {item.unit}
-                        </span>
                       </div>
                     </div>
                   )
