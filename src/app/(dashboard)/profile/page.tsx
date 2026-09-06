@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, User, Camera, Save, Loader2, Trash2 } from 'lucide-react'
+import { ArrowLeft, User, Camera, Save, Loader2, Trash2, Fingerprint } from 'lucide-react'
 import { toast } from 'sonner'
 import { FooterCredit } from '@/components/FooterCredit'
 import { DeleteAccountModal } from '@/components/DeleteAccountModal'
@@ -20,6 +20,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [registeringPasskey, setRegisteringPasskey] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
   useEffect(() => {
@@ -109,6 +110,21 @@ export default function ProfilePage() {
       toast.error('Error guardando perfil', { description: error.message })
     } finally {
       setSaving(false)
+    }
+  }
+
+  // Nueva función para Registrar Passkey
+  const handleRegisterPasskey = async () => {
+    try {
+      setRegisteringPasskey(true)
+      const { error } = await supabase.auth.registerPasskey()
+      
+      if (error) throw error
+      toast.success('¡Autenticación biométrica activada con éxito!')
+    } catch (error: any) {
+      toast.error('No se pudo registrar la huella/FaceID', { description: error.message })
+    } finally {
+      setRegisteringPasskey(false)
     }
   }
 
@@ -207,8 +223,27 @@ export default function ProfilePage() {
           {saving ? 'Guardando...' : 'Guardar Perfil'}
         </button>
 
+        {/* --- NUEVA SECCIÓN: PASSKEYS --- */}
+        <div className="pt-6 border-t border-black/5 dark:border-white/5 space-y-3">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+              <Fingerprint size={16} className="text-indigo-500" /> Seguridad
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Activa Passkeys para iniciar sesión rápido sin contraseña en tu dispositivo.</p>
+          </div>
+          <button 
+            type="button"
+            onClick={handleRegisterPasskey}
+            disabled={registeringPasskey}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-200/50 dark:bg-slate-800/50 border border-black/5 dark:border-white/5 px-4 py-3 font-bold text-gray-800 dark:text-gray-200 hover:bg-slate-300/50 dark:hover:bg-slate-700/50 transition-all active:scale-[0.98] cursor-pointer text-sm"
+          >
+            {registeringPasskey ? <Loader2 className="h-5 w-5 animate-spin" /> : <Fingerprint size={18} className="text-indigo-500" />}
+            {registeringPasskey ? 'Registrando...' : 'Activar Huella / FaceID'}
+          </button>
+        </div>
+
         {/* Zona de Peligro: Eliminar Cuenta */}
-        <div className="pt-4 border-t border-red-500/20">
+        <div className="pt-6 border-t border-red-500/20">
           <button 
             type="button"
             onClick={() => setIsDeleteModalOpen(true)}
