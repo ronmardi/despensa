@@ -87,7 +87,7 @@ export default function HouseholdPage() {
         setHousehold({
           id: hh.id,
           name: hh.name,
-          invite_code: hh.code || hh.invite_code || '',
+          invite_code: hh.invite_code || hh.code || '',
         })
         setNewHouseholdName(hh.name)
       }
@@ -145,7 +145,7 @@ export default function HouseholdPage() {
     return result
   }
 
-  // Confirmación para Renovar Código
+  // Confirmación para Renovar Código (FIX APLICADO)
   const confirmRegenerateCode = () => {
     if (!household || !isAdmin) return
     setDialog({
@@ -160,11 +160,11 @@ export default function HouseholdPage() {
 
         const { error } = await supabase
           .from('households')
-          .update({ code: newCode }) // Apuntamos a 'code' que es la columna estándar
+          .update({ invite_code: newCode }) // Fix: Apuntamos correctamente a 'invite_code'
           .eq('id', household.id)
 
         if (error) {
-          toast.error('Error al generar nuevo código')
+          toast.error('Error al generar nuevo código', { description: 'Revisa las políticas RLS en Supabase' })
         } else {
           setHousehold({ ...household, invite_code: newCode })
           toast.success('Código de invitación renovado')
