@@ -49,7 +49,11 @@ export function FloatingDock() {
     }
   }, [pathname, supabase])
 
-  if (!mounted || !hasHousehold) return null
+  // Verificamos si estamos únicamente en la Despensa
+  const isPantry = pathname === '/pantry' || pathname === '/pantry/'
+
+  // Se oculta si no está montado, si no tiene hogar o si NO estamos en Pantry
+  if (!mounted || !hasHousehold || !isPantry) return null
 
   const navItems = [
     { href: '/pantry', label: 'Despensa', icon: Package },
