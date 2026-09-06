@@ -107,6 +107,19 @@ export default function HistoryPage() {
     }
   }
 
+  const formatDetails = (details: string) => {
+    if (!details) return ''
+    return details
+      .replace(/\b1\s+unidades\b/gi, '1 unidad')
+      .replace(/\b1\s+litros\b/gi, '1 litro')
+      .replace(/\b1\s+kilos\b/gi, '1 kilo')
+      .replace(/\b1\s+kilogramos\b/gi, '1 kilogramo')
+      .replace(/\b1\s+latas\b/gi, '1 lata')
+      .replace(/\b1\s+botellas\b/gi, '1 botella')
+      .replace(/\b1\s+cajas\b/gi, '1 caja')
+      .replace(/\b1\s+paquetes\b/gi, '1 paquete')
+  }
+
   const formatDate = (isoString: string) => {
     const date = new Date(isoString)
     return date.toLocaleString('es-CL', { 
@@ -165,7 +178,7 @@ export default function HistoryPage() {
                 </div>
 
                 <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
-                  {log.details}
+                  {formatDetails(log.details)}
                 </p>
 
                 <div className="mt-3 flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-500 border-t border-black/5 dark:border-white/5 pt-2">
