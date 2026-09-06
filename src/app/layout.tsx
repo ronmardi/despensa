@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { FloatingDock } from '@/components/FloatingDock'
+import { MusicPlayer } from '@/components/MusicPlayer'
 
 export const metadata: Metadata = {
   title: 'Mi Despensa',
@@ -29,6 +30,7 @@ export default function RootLayout({
       <body className="min-h-full bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased selection:bg-indigo-500 selection:text-white">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
+          <MusicPlayer />
           <FloatingDock />
         </ThemeProvider>
       </body>
