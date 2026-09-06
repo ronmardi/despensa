@@ -10,6 +10,7 @@ import { updateItemQuantityAction, deleteItemAction } from './actions'
 import { toast } from 'sonner'
 import { EditProductModal } from '@/components/EditProductModal'
 import { OnboardingModal } from '@/components/OnboardingModal'
+import { formatUnit } from '@/lib/utils/format'
 
 interface PantryItem {
   id: string
@@ -59,19 +60,6 @@ function getProductEmoji(name: string): string {
   if (n.includes('papel') || n.includes('higienico')) return '🧻'
 
   return '📦'
-}
-
-function formatUnitBadge(quantity: number, unit: string): string {
-  const u = unit.toLowerCase().trim()
-  if (u === 'unidades' || u === 'unidad') return quantity === 1 ? 'ud' : 'uds'
-  if (u === 'litros' || u === 'litro') return 'lt'
-  if (u === 'kilogramos' || u === 'kilos' || u === 'kilo') return 'kg'
-  if (u === 'gramos' || u === 'gramo') return 'g'
-  if (u === 'latas' || u === 'lata') return 'latas'
-  if (u === 'botellas' || u === 'botella') return 'bot.'
-  if (u === 'cajas' || u === 'caja') return 'cajas'
-  if (u === 'paquetes' || u === 'paquete') return 'paq.'
-  return unit
 }
 
 export default function PantryPage() {
@@ -419,7 +407,7 @@ export default function PantryPage() {
                         {item.current_quantity}
                       </span>
                       <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400 mt-0.5 lowercase tracking-wider truncate max-w-12">
-                        {formatUnitBadge(item.current_quantity, item.unit)}
+                        {formatUnit(item.unit, item.current_quantity)}
                       </span>
                     </div>
 
