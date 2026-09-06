@@ -346,61 +346,73 @@ export default function PantryPage() {
             return (
               <div 
                 key={item.id}
-                className={`flex items-center justify-between rounded-2xl p-4 transition-all duration-200 ${glass3dClass} ${
+                className={`flex items-center justify-between gap-2 rounded-2xl p-4 transition-all duration-200 ${glass3dClass} ${
                   isLowStock ? 'ring-2 ring-amber-500/40 dark:ring-amber-500/30' : ''
                 }`}
               >
-                <div className="flex-1 pr-2">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2 text-base">
-                      <span className="text-2xl filter drop-shadow-sm">{getProductEmoji(item.name)}</span>
-                      {item.name}
+                {/* Lado izquierdo adaptabilidad min-w-0 para prevenir colapsos en Mac/safari */}
+                <div className="flex-1 min-w-0 pr-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5 text-base truncate max-w-full">
+                      <span className="text-2xl filter drop-shadow-sm shrink-0">{getProductEmoji(item.name)}</span>
+                      <span className="truncate">{item.name}</span>
                     </h3>
                     {isLowStock && (
-                      <span className="flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                        <AlertTriangle size={11} /> Reponer
+                      <span className="flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-extrabold text-amber-700 dark:text-amber-300 border border-amber-500/30 shrink-0">
+                        <AlertTriangle size={10} /> Reponer
                       </span>
                     )}
                   </div>
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 capitalize mt-0.5">{item.category}</p>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 capitalize mt-0.5 truncate">
+                    {item.category}
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-2.5">
+                {/* Controles del lado derecho blindados para no comprimirse */}
+                <div className="flex items-center gap-1.5 shrink-0">
                   <div className="flex items-center gap-1 rounded-xl bg-slate-200/50 dark:bg-slate-950/50 p-1 border border-black/5 dark:border-white/5 shadow-inner">
                     <button
                       onClick={() => handleQuantityChange(item.id, -1)}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 shadow-sm hover:text-red-500 active:scale-90 transition-all cursor-pointer"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 shadow-sm hover:text-red-500 active:scale-90 transition-all cursor-pointer shrink-0"
                     >
                       <Minus size={15} />
                     </button>
                     
-                    <span className="min-w-11 text-center text-sm font-extrabold text-gray-900 dark:text-white">
-                      {item.current_quantity} <span className="text-[10px] font-normal text-gray-500 dark:text-gray-400">{item.unit}</span>
-                    </span>
+                    {/* Disposición apilada verticalmente de número + unidad para ahorrar espacio */}
+                    <div className="flex flex-col items-center justify-center min-w-10 px-1">
+                      <span className="text-sm font-extrabold text-gray-900 dark:text-white leading-none">
+                        {item.current_quantity}
+                      </span>
+                      <span className="text-[8px] font-medium text-gray-500 dark:text-gray-400 mt-0.5 uppercase tracking-wider truncate max-w-[45px]">
+                        {item.unit}
+                      </span>
+                    </div>
 
                     <button
                       onClick={() => handleQuantityChange(item.id, 1)}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 shadow-sm hover:text-green-500 active:scale-90 transition-all cursor-pointer"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 shadow-sm hover:text-green-500 active:scale-90 transition-all cursor-pointer shrink-0"
                     >
                       <Plus size={15} />
                     </button>
                   </div>
 
-                  <button
-                    onClick={() => setEditingItem(item)}
-                    className="p-2 text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors cursor-pointer rounded-xl hover:bg-indigo-500/10"
-                    title="Editar producto"
-                  >
-                    <Pencil size={17} />
-                  </button>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button
+                      onClick={() => setEditingItem(item)}
+                      className="p-1.5 text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors cursor-pointer rounded-xl hover:bg-indigo-500/10"
+                      title="Editar producto"
+                    >
+                      <Pencil size={16} />
+                    </button>
 
-                  <button
-                    onClick={() => handleDeleteItem(item.id)}
-                    className="p-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer rounded-xl hover:bg-red-500/10"
-                    title="Eliminar producto"
-                  >
-                    <Trash2 size={17} />
-                  </button>
+                    <button
+                      onClick={() => handleDeleteItem(item.id)}
+                      className="p-1.5 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer rounded-xl hover:bg-red-500/10"
+                      title="Eliminar producto"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
               </div>
             )
