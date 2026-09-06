@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { ArrowLeft, Clock, History as HistoryIcon, Plus, Minus, PackagePlus, Trash2, Pencil } from 'lucide-react'
+import { formatUnit } from '@/lib/utils/format'
 
 interface ActivityLog {
   id: string
@@ -109,15 +110,11 @@ export default function HistoryPage() {
 
   const formatDetails = (details: string) => {
     if (!details) return ''
-    return details
-      .replace(/\b1\s+unidades\b/gi, '1 unidad')
-      .replace(/\b1\s+litros\b/gi, '1 litro')
-      .replace(/\b1\s+kilos\b/gi, '1 kilo')
-      .replace(/\b1\s+kilogramos\b/gi, '1 kilogramo')
-      .replace(/\b1\s+latas\b/gi, '1 lata')
-      .replace(/\b1\s+botellas\b/gi, '1 botella')
-      .replace(/\b1\s+cajas\b/gi, '1 caja')
-      .replace(/\b1\s+paquetes\b/gi, '1 paquete')
+    // Procesa el texto del detalle utilizando el utilitario centralizado de unidades
+    return details.replace(/(\d+(?:\.\d+)?)\s+([a-zA-ZáéíóúÁÉÍÓÚñÑ]+)/g, (_, qtyStr, unitStr) => {
+      const qty = parseFloat(qtyStr)
+      return `${qtyStr} ${formatUnit(unitStr, qty)}`
+    })
   }
 
   const formatDate = (isoString: string) => {
