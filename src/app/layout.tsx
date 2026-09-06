@@ -7,7 +7,7 @@ import { Package, ShoppingCart, Clock, Users, Plus } from 'lucide-react'
 export function FloatingDock() {
   const pathname = usePathname()
 
-  // Muestra la barra únicamente si el usuario está en la vista de Despensa
+  // Visibilidad exclusiva en la pantalla de la Despensa
   if (pathname !== '/pantry') return null
 
   const navItems = [
@@ -45,8 +45,9 @@ export function FloatingDock() {
 
       <Link
         href="/pantry/add"
-        className="flex h-13 w-13 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all duration-200"
+        aria-label="Agregar producto"
         title="Agregar producto"
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-linear-to-tr from-indigo-600 via-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all duration-200"
       >
         <Plus size={26} strokeWidth={2.5} />
       </Link>
