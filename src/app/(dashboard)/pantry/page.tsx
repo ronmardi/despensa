@@ -22,6 +22,7 @@ interface PantryItem {
 
 function getProductEmoji(name: string): string {
   const n = name.toLowerCase()
+  // Comida y Despensa
   if (n.includes('arroz')) return '🍚'
   if (n.includes('leche')) return '🥛'
   if (n.includes('pan')) return '🍞'
@@ -34,14 +35,6 @@ function getProductEmoji(name: string): string {
   if (n.includes('papa')) return '🥔'
   if (n.includes('manzana')) return '🍎'
   if (n.includes('platano') || n.includes('banana')) return '🍌'
-  if (n.includes('agua')) return '💧'
-  if (n.includes('jugo')) return '🧃'
-  if (n.includes('cerveza')) return '🍺'
-  if (n.includes('vino')) return '🍷'
-  if (n.includes('cafe') || n.includes('café')) return '☕'
-  if (n.includes('te') || n.includes('té')) return '🍵'
-  if (n.includes('jabon') || n.includes('jabón')) return '🧼'
-  if (n.includes('papel') || n.includes('higienico')) return '🧻'
   if (n.includes('pasta') || n.includes('fideo')) return '🍝'
   if (n.includes('galleta')) return '🍪'
   if (n.includes('chocolate')) return '🍫'
@@ -49,7 +42,36 @@ function getProductEmoji(name: string): string {
   if (n.includes('pescado') || n.includes('atun') || n.includes('atún')) return '🐟'
   if (n.includes('yogur') || n.includes('cereal')) return '🥣'
   if (n.includes('helado')) return '🍨'
+  
+  // Bebidas
+  if (n.includes('agua')) return '💧'
+  if (n.includes('jugo')) return '🧃'
+  if (n.includes('bebida') || n.includes('soda') || n.includes('gaseosa')) return '🥤'
+  if (n.includes('cerveza')) return '🍺'
+  if (n.includes('vino')) return '🍷'
+  if (n.includes('cafe') || n.includes('café')) return '☕'
+  if (n.includes('te') || n.includes('té')) return '🍵'
+
+  // Limpieza e Higiene
+  if (n.includes('cloro') || n.includes('desinfectante') || n.includes('limpiador')) return '🧹'
+  if (n.includes('shampoo') || n.includes('champú') || n.includes('acondicionador')) return '🧴'
+  if (n.includes('jabon') || n.includes('jabón') || n.includes('detergente') || n.includes('lava')) return '🧼'
+  if (n.includes('papel') || n.includes('higienico')) return '🧻'
+
   return '📦'
+}
+
+function formatUnitBadge(quantity: number, unit: string): string {
+  const u = unit.toLowerCase().trim()
+  if (u === 'unidades' || u === 'unidad') return quantity === 1 ? 'ud' : 'uds'
+  if (u === 'litros' || u === 'litro') return 'lt'
+  if (u === 'kilogramos' || u === 'kilos' || u === 'kilo') return 'kg'
+  if (u === 'gramos' || u === 'gramo') return 'g'
+  if (u === 'latas' || u === 'lata') return 'latas'
+  if (u === 'botellas' || u === 'botella') return 'bot.'
+  if (u === 'cajas' || u === 'caja') return 'cajas'
+  if (u === 'paquetes' || u === 'paquete') return 'paq.'
+  return unit
 }
 
 export default function PantryPage() {
@@ -108,7 +130,6 @@ export default function PantryPage() {
 
       if (pantryItems) setItems(pantryItems)
     } else {
-      // Si el usuario no pertenece a ningún hogar, activamos el flujo de bienvenida
       setIsOnboardingOpen(true)
       setItems([])
     }
@@ -134,7 +155,6 @@ export default function PantryPage() {
     })
   }, [items, searchTerm, selectedCategory])
 
-  // Lógica de cambio de cantidad con debounce de 500ms
   const handleQuantityChange = (id: string, delta: number) => {
     const currentItem = items.find((i) => i.id === id)
     if (!currentItem) return
@@ -216,8 +236,7 @@ export default function PantryPage() {
   const glass3dClass = "backdrop-blur-md bg-white/60 dark:bg-slate-900/60 border border-white/80 dark:border-slate-700/60 shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.4)]"
 
   return (
-    <div className="mx-auto max-w-md p-4 pb-28">
-      {/* Onboarding Flotante para nuevos usuarios */}
+    <div className="mx-auto max-w-md p-4 pb-36">
       <OnboardingModal
         userName={userName}
         isOpen={isOnboardingOpen}
@@ -237,7 +256,7 @@ export default function PantryPage() {
         />
       )}
 
-      {/* Cabecera con ancho flexible para el nombre del hogar */}
+      {/* Cabecera */}
       <header className="mb-6 mt-4 flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm truncate">
@@ -310,7 +329,8 @@ export default function PantryPage() {
             )}
           </div>
 
-          <div className="flex gap-2 overflow-x-auto py-2 px-1 -mx-1 no-scrollbar items-center">
+          {/* Categorías con difuminado suave en el borde derecho (scroll cue) */}
+          <div className="flex gap-2 overflow-x-auto py-2 px-1 -mx-1 no-scrollbar items-center mask-[linear-gradient(to_right,black_88%,transparent)]">
             {categories.map((cat) => {
               const isActive = selectedCategory.toLowerCase() === cat.toLowerCase()
               return (
@@ -357,7 +377,7 @@ export default function PantryPage() {
           </button>
         </div>
       ) : (
-        <div className="space-y-3.5">
+        <div className="space-y-3.5 pb-20">
           {filteredItems.map((item) => {
             const isLowStock = item.current_quantity <= item.min_threshold
 
@@ -398,8 +418,8 @@ export default function PantryPage() {
                       <span className="text-sm font-extrabold text-gray-900 dark:text-white leading-none">
                         {item.current_quantity}
                       </span>
-                      <span className="text-[8px] font-medium text-gray-500 dark:text-gray-400 mt-0.5 uppercase tracking-wider truncate max-w-11.25">
-                        {item.unit}
+                      <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400 mt-0.5 lowercase tracking-wider truncate max-w-12">
+                        {formatUnitBadge(item.current_quantity, item.unit)}
                       </span>
                     </div>
 
@@ -435,10 +455,10 @@ export default function PantryPage() {
         </div>
       )}
 
-      {/* Botón Flotante con Profundidad 3D */}
+      {/* Botón Flotante (+ / FAB) */}
       <Link 
         href="/pantry/add"
-        className="fixed bottom-7 right-7 flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-tr from-indigo-600 via-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all duration-200"
+        className="fixed bottom-7 right-7 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-tr from-indigo-600 via-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all duration-200"
       >
         <Plus size={30} />
       </Link>
