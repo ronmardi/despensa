@@ -192,7 +192,7 @@ export default function HistoryPage() {
                 <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-full">
                   {dateLabel}
                 </span>
-                <div className="h-px flex-1 bg-gradient-to-r from-indigo-500/20 via-gray-300 dark:via-gray-700 to-transparent" />
+                <div className="h-px flex-1 bg-linear-to-r from-indigo-500/20 via-gray-300 dark:via-gray-700 to-transparent" />
               </div>
 
               {/* Timeline del grupo */}
