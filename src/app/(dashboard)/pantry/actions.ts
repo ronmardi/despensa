@@ -39,7 +39,6 @@ export async function createHouseholdAction(name: string) {
     user_email: user.email
   }])
 
-  revalidatePath('/pantry')
   return { success: true, household }
 }
 
@@ -75,7 +74,6 @@ export async function joinHouseholdAction(inviteCode: string) {
     user_email: user.email
   }])
 
-  revalidatePath('/pantry')
   return { success: true }
 }
 
