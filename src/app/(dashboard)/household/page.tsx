@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { ArrowLeft, Users, Copy, Check, QrCode, UserPlus, Loader2, Share2, Pencil, X, User, Shield, UserMinus, RefreshCw, LogOut } from 'lucide-react'
+import { ArrowLeft, Users, Copy, Check, QrCode, UserPlus, Loader2, Share2, Pencil, X, User, Shield, UserMinus, RefreshCw, LogOut, PlusCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Household {
@@ -43,6 +43,11 @@ export default function HouseholdPage() {
   const [joinCode, setJoinCode] = useState('')
   const [joining, setJoining] = useState(false)
   const [regenerating, setRegenerating] = useState(false)
+
+  // Estado para la vista sin hogar (Unirse vs Crear)
+  const [noHouseholdTab, setNoHouseholdTab] = useState<'join' | 'create'>('join')
+  const [newHogName, setNewHogName] = useState('')
+  const [creatingHog, setCreatingHog] = useState(false)
 
   const [isEditingName, setIsEditingName] = useState(false)
   const [newHouseholdName, setNewHouseholdName] = useState('')
@@ -354,6 +359,56 @@ export default function HouseholdPage() {
     setJoining(false)
   }
 
+  // Función para CREAR un nuevo hogar
+  const handleCreateHousehold = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newHogName.trim()) return
+
+    setCreatingHog(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setCreatingHog(false)
+      return
+    }
+
+    const code = generateRandomCode()
+
+    const { data: newHh, error: hhErr } = await supabase
+      .from('households')
+      .insert({
+        name: newHogName.trim(),
+        invite_code: code,
+        created_by: user.id,
+        owner_id: user.id
+      })
+      .select()
+      .single()
+
+    if (hhErr || !newHh) {
+      toast.error('Error al crear el hogar', { description: hhErr?.message })
+      setCreatingHog(false)
+      return
+    }
+
+    await supabase.from('household_members').delete().eq('user_id', user.id)
+    const { error: memErr } = await supabase
+      .from('household_members')
+      .insert({
+        household_id: newHh.id,
+        user_id: user.id,
+        role: 'owner'
+      })
+
+    if (memErr) {
+      toast.error('Error al asignar propietario')
+    } else {
+      toast.success('¡Hogar creado con éxito!')
+      setNewHogName('')
+      loadHouseholdData()
+    }
+    setCreatingHog(false)
+  }
+
   const glass3dClass = "backdrop-blur-md bg-white/60 dark:bg-slate-900/60 border border-white/80 dark:border-slate-700/60 shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.4)]"
 
   return (
@@ -635,27 +690,78 @@ export default function HouseholdPage() {
           </div>
         </div>
       ) : (
-        <div className={`rounded-3xl p-8 text-center ${glass3dClass}`}>
-          <UserPlus className="mx-auto mb-3 text-indigo-500" size={48} />
-          <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">Sin hogar asignado</h2>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 mb-4">Ingresa un código de invitación para unirte a uno existente.</p>
-          
-          <form onSubmit={handleJoinHousehold} className="space-y-3">
-            <input
-              type="text"
-              placeholder="Código de invitación (Ej: X8K9P2)"
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value)}
-              className="w-full rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 px-4 py-3 text-sm font-mono text-gray-900 dark:text-white uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-            />
+        /* VISTA SIN HOGAR: UNIRSE O CREAR */
+        <div className={`rounded-3xl p-6 text-center ${glass3dClass}`}>
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+            <UserPlus size={28} />
+          </div>
+
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Sin hogar asignado</h2>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 mb-5">
+            Únete a un hogar existente o crea uno nuevo para comenzar.
+          </p>
+
+          {/* Selector Unirse vs Crear */}
+          <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-200/50 dark:bg-slate-950/50 p-1 mb-5 border border-black/5 dark:border-white/5">
             <button
-              type="submit"
-              disabled={joining}
-              className="w-full rounded-xl bg-indigo-600 text-white font-bold py-3 text-xs shadow-md hover:bg-indigo-700 active:scale-95 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+              type="button"
+              onClick={() => setNoHouseholdTab('join')}
+              className={`py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                noHouseholdTab === 'join'
+                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+              }`}
             >
-              {joining ? <Loader2 size={16} className="animate-spin" /> : 'Unirse al Hogar'}
+              Unirme con código
             </button>
-          </form>
+            <button
+              type="button"
+              onClick={() => setNoHouseholdTab('create')}
+              className={`py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                noHouseholdTab === 'create'
+                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+              }`}
+            >
+              Crear nuevo hogar
+            </button>
+          </div>
+
+          {noHouseholdTab === 'join' ? (
+            <form onSubmit={handleJoinHousehold} className="space-y-3">
+              <input
+                type="text"
+                placeholder="Código de invitación (Ej: X8K9P2)"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value)}
+                className="w-full rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 px-4 py-3 text-sm font-mono text-gray-900 dark:text-white uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              />
+              <button
+                type="submit"
+                disabled={joining}
+                className="w-full rounded-xl bg-indigo-600 text-white font-bold py-3 text-xs shadow-md hover:bg-indigo-700 active:scale-95 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {joining ? <Loader2 size={16} className="animate-spin" /> : 'Unirse al Hogar'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleCreateHousehold} className="space-y-3">
+              <input
+                type="text"
+                placeholder="Nombre del hogar (Ej: Casa Martínez)"
+                value={newHogName}
+                onChange={(e) => setNewHogName(e.target.value)}
+                className="w-full rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 px-4 py-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              />
+              <button
+                type="submit"
+                disabled={creatingHog}
+                className="w-full rounded-xl bg-linear-to-r from-indigo-600 to-purple-600 text-white font-bold py-3 text-xs shadow-md active:scale-95 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {creatingHog ? <Loader2 size={16} className="animate-spin" /> : <><PlusCircle size={16} /> Crear Hogar</>}
+              </button>
+            </form>
+          )}
         </div>
       )}
 
