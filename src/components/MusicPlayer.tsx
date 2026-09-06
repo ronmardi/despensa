@@ -21,15 +21,15 @@ export function MusicPlayer() {
       {isOpen && (
         <div className="w-72 md:w-80 rounded-2xl overflow-hidden shadow-[0_15px_40px_rgba(0,0,0,0.4)] pointer-events-auto animate-in slide-in-from-right-8 duration-300">
           <iframe
-            style={{ borderRadius: '16px' }}
-            src="https://open.spotify.com/embed/artist/1uNFoZAHBGtllmzznpZB3s?utm_source=generator&theme=0"
-            width="100%"
-            height="152"
-            frameBorder="0"
-            allowFullScreen={false}
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            loading="lazy"
-          ></iframe>
+          style={{ borderRadius: '16px' }}
+          src="https://open.spotify.com/embed/playlist/37i9dQZF1DXc2aPBXGmXrt?utm_source=generator&theme=0"
+          width="100%"
+          height="152"
+          frameBorder="0"
+          allowFullScreen={false}
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          loading="lazy"
+        ></iframe>
         </div>
       )}
     </div>
