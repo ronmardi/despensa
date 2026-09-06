@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { FooterCredit } from '@/components/FooterCredit'
-import { ShoppingCart, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -81,8 +81,13 @@ export default function LoginPage() {
           </div>
 
           <div className="flex flex-col items-center mb-6">
-            <div className="bg-indigo-500/10 dark:bg-indigo-500/20 p-3 rounded-2xl mb-3 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400">
-              <ShoppingCart size={32} />
+            {/* Logo oficial integrado */}
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-md border border-white/60 dark:border-slate-700/60 p-2.5 mb-3 shadow-md">
+              <img 
+                src="/icon.svg" 
+                alt="Mi Despensa Logo" 
+                className="h-full w-full object-contain filter drop-shadow-sm" 
+              />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white drop-shadow-sm mb-1">
               Mi Despensa
