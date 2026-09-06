@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { ArrowLeft, Users, Copy, Check, QrCode, UserPlus, Loader2, Share2, Pencil, X, User, Shield, UserMinus, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Users, Copy, Check, QrCode, UserPlus, Loader2, Share2, Pencil, X, User, Shield, UserMinus, RefreshCw, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Household {
@@ -123,6 +123,10 @@ export default function HouseholdPage() {
           setMembers(merged)
         }
       }
+    } else {
+      // Si el usuario no está en ningún hogar, limpiamos los datos
+      setHousehold(null)
+      setMembers([])
     }
     setLoading(false)
   }, [supabase])
@@ -145,7 +149,7 @@ export default function HouseholdPage() {
     return result
   }
 
-  // Confirmación para Renovar Código (FIX APLICADO)
+  // Confirmación para Renovar Código
   const confirmRegenerateCode = () => {
     if (!household || !isAdmin) return
     setDialog({
@@ -160,7 +164,7 @@ export default function HouseholdPage() {
 
         const { error } = await supabase
           .from('households')
-          .update({ invite_code: newCode }) // Fix: Apuntamos correctamente a 'invite_code'
+          .update({ invite_code: newCode }) 
           .eq('id', household.id)
 
         if (error) {
@@ -175,7 +179,7 @@ export default function HouseholdPage() {
     })
   }
 
-  // Confirmación para Expulsar
+  // Confirmación para Expulsar a otro miembro
   const confirmKickMember = (userId: string, userName: string) => {
     if (!household || !isAdmin || userId === currentUserId) return
     setDialog({
@@ -194,6 +198,35 @@ export default function HouseholdPage() {
         if (error) toast.error('Error al expulsar usuario')
         else {
           toast.success(`${userName} ha sido expulsado`)
+          loadHouseholdData()
+        }
+        setDialog(prev => ({ ...prev, isOpen: false }))
+      }
+    })
+  }
+
+  // Confirmación para ABANDONAR EL HOGAR (Tú mismo)
+  const confirmLeaveHousehold = () => {
+    if (!household || !currentUserId) return
+    setDialog({
+      isOpen: true,
+      title: 'Abandonar hogar',
+      description: `¿Estás seguro de que deseas salir de "${household.name}"? Perderás el acceso a esta despensa de inmediato.`,
+      actionLabel: 'Sí, salir',
+      isDestructive: true,
+      actionFn: async () => {
+        const { error } = await supabase
+          .from('household_members')
+          .delete()
+          .eq('user_id', currentUserId)
+          .eq('household_id', household.id)
+
+        if (error) {
+          toast.error('Error al salir del hogar')
+        } else {
+          toast.success('Has abandonado el hogar')
+          setHousehold(null)
+          setMembers([])
           loadHouseholdData()
         }
         setDialog(prev => ({ ...prev, isOpen: false }))
@@ -399,7 +432,7 @@ export default function HouseholdPage() {
             </p>
           </div>
 
-          {/* Lista de Integrantes (Con cambio de Rol) */}
+          {/* Lista de Integrantes */}
           <div className={`rounded-3xl p-5 space-y-3 ${glass3dClass}`}>
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
               Integrantes del hogar
@@ -471,9 +504,18 @@ export default function HouseholdPage() {
                       )}
                       
                       {isMe && (
-                        <span className="shrink-0 rounded-full bg-indigo-500/15 px-2.5 py-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                          Tú
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="shrink-0 rounded-full bg-indigo-500/15 px-2.5 py-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                            Tú
+                          </span>
+                          <button
+                            onClick={confirmLeaveHousehold}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg text-red-500 hover:bg-red-500/10 transition-all cursor-pointer"
+                            title="Abandonar hogar"
+                          >
+                            <LogOut size={14} />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
