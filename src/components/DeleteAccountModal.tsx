@@ -16,8 +16,11 @@ export function DeleteAccountModal({ isOpen, onClose }: DeleteAccountModalProps)
 
   if (!isOpen) return null
 
+  // Normaliza el texto quitando espacios y pasando a mayúsculas
+  const isValid = confirmText.trim().toUpperCase() === 'ELIMINAR'
+
   const handleDelete = async () => {
-    if (confirmText !== 'ELIMINAR') return
+    if (!isValid) return
 
     setLoading(true)
     const res = await deleteUserAccountAction()
@@ -57,8 +60,10 @@ export function DeleteAccountModal({ isOpen, onClose }: DeleteAccountModalProps)
             <input
               type="text"
               value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value)}
+              onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
               placeholder="ELIMINAR"
+              autoCapitalize="characters"
+              autoCorrect="off"
               className="w-full rounded-xl bg-white/50 dark:bg-slate-950/50 border border-red-500/30 px-3.5 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500/50 uppercase"
             />
           </div>
@@ -75,7 +80,7 @@ export function DeleteAccountModal({ isOpen, onClose }: DeleteAccountModalProps)
             <button
               type="button"
               onClick={handleDelete}
-              disabled={loading || confirmText !== 'ELIMINAR'}
+              disabled={loading || !isValid}
               className="w-1/2 flex items-center justify-center gap-2 rounded-xl bg-red-600 py-3 text-xs font-bold text-white transition-all hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-red-500/30"
             >
               {loading ? <Loader2 className="animate-spin" size={16} /> : 'Borrar todo'}
