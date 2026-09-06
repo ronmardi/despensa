@@ -20,6 +20,15 @@ interface MemberProfile {
   role?: string
 }
 
+interface DialogState {
+  isOpen: boolean
+  title: string
+  description: string
+  actionLabel: string
+  isDestructive: boolean
+  actionFn: () => Promise<void> | void
+}
+
 export default function HouseholdPage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
@@ -39,6 +48,16 @@ export default function HouseholdPage() {
   const [newHouseholdName, setNewHouseholdName] = useState('')
   const [updatingName, setUpdatingName] = useState(false)
 
+  // Estado para el Modal de Confirmación Personalizado
+  const [dialog, setDialog] = useState<DialogState>({
+    isOpen: false,
+    title: '',
+    description: '',
+    actionLabel: '',
+    isDestructive: false,
+    actionFn: () => {}
+  })
+
   const loadHouseholdData = useCallback(async () => {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
@@ -48,7 +67,6 @@ export default function HouseholdPage() {
     }
     setCurrentUserId(user.id)
 
-    // 1. Obtener membresía del usuario actual y su rol
     const { data: memberData } = await supabase
       .from('household_members')
       .select('household_id, role')
@@ -59,7 +77,6 @@ export default function HouseholdPage() {
       const hId = memberData.household_id
       setCurrentUserRole(memberData.role || 'member')
 
-      // 2. Obtener datos del hogar
       const { data: hh } = await supabase
         .from('households')
         .select('*')
@@ -70,12 +87,11 @@ export default function HouseholdPage() {
         setHousehold({
           id: hh.id,
           name: hh.name,
-          invite_code: hh.invite_code || hh.code || '',
+          invite_code: hh.code || hh.invite_code || '',
         })
         setNewHouseholdName(hh.name)
       }
 
-      // 3. Obtener miembros y roles
       const { data: allMembers } = await supabase
         .from('household_members')
         .select('user_id, role')
@@ -84,7 +100,6 @@ export default function HouseholdPage() {
       if (allMembers && allMembers.length > 0) {
         const userIds = allMembers.map((m) => m.user_id)
 
-        // 4. Obtener perfiles de usuarios
         const { data: profilesData } = await supabase
           .from('profiles')
           .select('id, full_name, avatar_url, email')
@@ -99,7 +114,6 @@ export default function HouseholdPage() {
             }
           })
 
-          // Ordenar: administradores primero
           merged.sort((a, b) => {
             if (a.role === 'admin' || a.role === 'owner') return -1
             if (b.role === 'admin' || b.role === 'owner') return 1
@@ -122,7 +136,6 @@ export default function HouseholdPage() {
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/join?code=${household.invite_code}` 
     : ''
 
-  // Generar un código aleatorio de 6 caracteres alfanuméricos
   const generateRandomCode = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     let result = ''
@@ -132,46 +145,89 @@ export default function HouseholdPage() {
     return result
   }
 
-  const handleRegenerateCode = async () => {
+  // Confirmación para Renovar Código
+  const confirmRegenerateCode = () => {
     if (!household || !isAdmin) return
-    
-    if (!confirm('Si cambias el código, los enlaces anteriores dejarán de funcionar. ¿Estás seguro?')) return
+    setDialog({
+      isOpen: true,
+      title: 'Renovar código',
+      description: 'Si cambias el código, los enlaces y códigos anteriores dejarán de funcionar. ¿Estás seguro?',
+      actionLabel: 'Sí, renovar',
+      isDestructive: true,
+      actionFn: async () => {
+        setRegenerating(true)
+        const newCode = generateRandomCode()
 
-    setRegenerating(true)
-    const newCode = generateRandomCode()
+        const { error } = await supabase
+          .from('households')
+          .update({ code: newCode }) // Apuntamos a 'code' que es la columna estándar
+          .eq('id', household.id)
 
-    // Actualizamos invite_code (y code si existiese por retrocompatibilidad)
-    const { error } = await supabase
-      .from('households')
-      .update({ invite_code: newCode, code: newCode })
-      .eq('id', household.id)
-
-    if (error) {
-      toast.error('Error al generar nuevo código')
-    } else {
-      setHousehold({ ...household, invite_code: newCode })
-      toast.success('Código de invitación renovado')
-    }
-    setRegenerating(false)
+        if (error) {
+          toast.error('Error al generar nuevo código')
+        } else {
+          setHousehold({ ...household, invite_code: newCode })
+          toast.success('Código de invitación renovado')
+        }
+        setRegenerating(false)
+        setDialog(prev => ({ ...prev, isOpen: false }))
+      }
+    })
   }
 
-  const handleKickMember = async (userId: string, userName: string) => {
+  // Confirmación para Expulsar
+  const confirmKickMember = (userId: string, userName: string) => {
     if (!household || !isAdmin || userId === currentUserId) return
+    setDialog({
+      isOpen: true,
+      title: 'Expulsar integrante',
+      description: `¿Seguro que deseas expulsar a ${userName} de la despensa? Perderá el acceso inmediatamente.`,
+      actionLabel: 'Expulsar',
+      isDestructive: true,
+      actionFn: async () => {
+        const { error } = await supabase
+          .from('household_members')
+          .delete()
+          .eq('user_id', userId)
+          .eq('household_id', household.id)
 
-    if (!confirm(`¿Seguro que deseas expulsar a ${userName} de la despensa?`)) return
+        if (error) toast.error('Error al expulsar usuario')
+        else {
+          toast.success(`${userName} ha sido expulsado`)
+          loadHouseholdData()
+        }
+        setDialog(prev => ({ ...prev, isOpen: false }))
+      }
+    })
+  }
 
-    const { error } = await supabase
-      .from('household_members')
-      .delete()
-      .eq('user_id', userId)
-      .eq('household_id', household.id)
+  // Confirmación para Cambiar Rol
+  const confirmChangeRole = (userId: string, userName: string, currentRole: string) => {
+    if (!household || !isAdmin) return
+    const newRole = currentRole === 'admin' ? 'member' : 'admin'
+    const roleText = newRole === 'admin' ? 'Administrador' : 'Miembro'
+    
+    setDialog({
+      isOpen: true,
+      title: 'Cambiar rol',
+      description: `¿Deseas otorgarle el rol de ${roleText} a ${userName}?`,
+      actionLabel: 'Sí, cambiar',
+      isDestructive: false,
+      actionFn: async () => {
+        const { error } = await supabase
+          .from('household_members')
+          .update({ role: newRole })
+          .eq('user_id', userId)
+          .eq('household_id', household.id)
 
-    if (error) {
-      toast.error('Error al expulsar usuario')
-    } else {
-      toast.success(`${userName} ha sido expulsado`)
-      loadHouseholdData()
-    }
+        if (error) toast.error('Error al cambiar rol')
+        else {
+          toast.success(`Rol de ${userName} actualizado`)
+          loadHouseholdData()
+        }
+        setDialog(prev => ({ ...prev, isOpen: false }))
+      }
+    })
   }
 
   const handleUpdateName = async (e: React.FormEvent) => {
@@ -187,10 +243,8 @@ export default function HouseholdPage() {
       .eq('id', household.id)
       .select()
 
-    if (error) {
-      toast.error('Error al cambiar el nombre', { description: error.message })
-    } else if (!data || data.length === 0) {
-      toast.error('No se guardó el cambio: revisa las políticas RLS en Supabase')
+    if (error || !data || data.length === 0) {
+      toast.error('Error al cambiar el nombre')
     } else {
       setHousehold({ ...household, name: trimmed })
       setIsEditingName(false)
@@ -217,7 +271,6 @@ export default function HouseholdPage() {
 
   const handleShareLink = async () => {
     if (!inviteUrl || !household) return
-
     if (navigator.share) {
       try {
         await navigator.share({
@@ -238,8 +291,6 @@ export default function HouseholdPage() {
     if (!cleanCode) return
 
     setJoining(true)
-    
-    // Buscar por invite_code o code
     const { data: hh } = await supabase
       .from('households')
       .select('id')
@@ -255,7 +306,6 @@ export default function HouseholdPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
       await supabase.from('household_members').delete().eq('user_id', user.id)
-
       const { error } = await supabase
         .from('household_members')
         .insert({ household_id: hh.id, user_id: user.id, role: 'member' })
@@ -316,7 +366,6 @@ export default function HouseholdPage() {
                   type="submit"
                   disabled={updatingName}
                   className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer active:scale-95"
-                  title="Guardar"
                 >
                   {updatingName ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                 </button>
@@ -327,7 +376,6 @@ export default function HouseholdPage() {
                     setNewHouseholdName(household.name)
                   }}
                   className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-200 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-300 cursor-pointer active:scale-95"
-                  title="Cancelar"
                 >
                   <X size={16} />
                 </button>
@@ -339,7 +387,6 @@ export default function HouseholdPage() {
                   <button
                     onClick={() => setIsEditingName(true)}
                     className="p-1.5 text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 rounded-lg hover:bg-indigo-500/10 transition-all cursor-pointer"
-                    title="Cambiar nombre del hogar"
                   >
                     <Pencil size={15} />
                   </button>
@@ -352,7 +399,7 @@ export default function HouseholdPage() {
             </p>
           </div>
 
-          {/* Lista de Integrantes (Sin correos y con expulsión para admin) */}
+          {/* Lista de Integrantes (Con cambio de Rol) */}
           <div className={`rounded-3xl p-5 space-y-3 ${glass3dClass}`}>
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
               Integrantes del hogar
@@ -384,14 +431,30 @@ export default function HouseholdPage() {
                           {displayName}
                         </p>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className={`flex items-center gap-0.5 text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md border ${
-                            isMemberAdmin 
-                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' 
-                              : 'bg-slate-200/50 dark:bg-slate-700/50 text-gray-500 dark:text-gray-400 border-black/5 dark:border-white/5'
-                          }`}>
-                            {isMemberAdmin && <Shield size={9} />}
-                            {isMemberAdmin ? 'Admin' : 'Miembro'}
-                          </span>
+                          {isAdmin && !isMe ? (
+                            <button
+                              onClick={() => confirmChangeRole(member.id, displayName, member.role || 'member')}
+                              className={`flex items-center gap-0.5 text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md border cursor-pointer hover:opacity-80 transition-opacity ${
+                                isMemberAdmin 
+                                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' 
+                                  : 'bg-slate-200/50 dark:bg-slate-700/50 text-gray-500 dark:text-gray-400 border-black/5 dark:border-white/5'
+                              }`}
+                              title="Cambiar rol"
+                            >
+                              {isMemberAdmin && <Shield size={9} />}
+                              {isMemberAdmin ? 'Admin' : 'Miembro'}
+                              <RefreshCw size={8} className="ml-0.5 opacity-50" />
+                            </button>
+                          ) : (
+                            <span className={`flex items-center gap-0.5 text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md border ${
+                              isMemberAdmin 
+                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' 
+                                : 'bg-slate-200/50 dark:bg-slate-700/50 text-gray-500 dark:text-gray-400 border-black/5 dark:border-white/5'
+                            }`}>
+                              {isMemberAdmin && <Shield size={9} />}
+                              {isMemberAdmin ? 'Admin' : 'Miembro'}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -399,7 +462,7 @@ export default function HouseholdPage() {
                     <div className="flex items-center gap-2">
                       {canKick && (
                         <button
-                          onClick={() => handleKickMember(member.id, displayName)}
+                          onClick={() => confirmKickMember(member.id, displayName)}
                           className="flex h-8 w-8 items-center justify-center rounded-lg text-red-500 hover:bg-red-500/10 transition-all cursor-pointer"
                           title={`Expulsar a ${displayName}`}
                         >
@@ -429,7 +492,6 @@ export default function HouseholdPage() {
               <button
                 onClick={() => setShowQr(!showQr)}
                 className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 transition-all cursor-pointer"
-                title="Mostrar Código QR"
               >
                 <QrCode size={18} />
               </button>
@@ -454,7 +516,7 @@ export default function HouseholdPage() {
                 </label>
                 {isAdmin && (
                   <button
-                    onClick={handleRegenerateCode}
+                    onClick={confirmRegenerateCode}
                     disabled={regenerating}
                     className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 hover:text-indigo-600 cursor-pointer disabled:opacity-50"
                   >
@@ -470,7 +532,6 @@ export default function HouseholdPage() {
                 <button
                   onClick={handleCopyCode}
                   className="flex items-center justify-center gap-1.5 rounded-xl bg-white/80 dark:bg-slate-800 border border-black/10 dark:border-white/10 px-3.5 py-2.5 text-xs font-bold text-gray-800 dark:text-gray-200 shadow-xs active:scale-95 transition-all cursor-pointer"
-                  title="Copiar código"
                 >
                   {copiedCode ? <Check size={15} className="text-green-500" /> : <Copy size={15} />}
                   {copiedCode ? 'Copiado' : 'Código'}
@@ -495,7 +556,7 @@ export default function HouseholdPage() {
                 className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-linear-to-r from-indigo-600 to-purple-600 px-4 py-2.5 text-xs font-bold text-white shadow-md active:scale-95 transition-all cursor-pointer"
               >
                 <Share2 size={15} />
-                Compartir por WhatsApp
+                Compartir
               </button>
 
               <button
@@ -553,6 +614,34 @@ export default function HouseholdPage() {
               {joining ? <Loader2 size={16} className="animate-spin" /> : 'Unirse al Hogar'}
             </button>
           </form>
+        </div>
+      )}
+
+      {/* Modal de Confirmación Global */}
+      {dialog.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-white/20 dark:border-white/10 ${glass3dClass}`}>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{dialog.title}</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">{dialog.description}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDialog(prev => ({ ...prev, isOpen: false }))}
+                className="flex-1 rounded-xl bg-slate-200/60 dark:bg-slate-800/60 px-4 py-3 text-sm font-bold text-gray-800 dark:text-gray-200 hover:bg-slate-300/60 dark:hover:bg-slate-700/60 active:scale-95 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={dialog.actionFn}
+                className={`flex-1 rounded-xl px-4 py-3 text-sm font-bold text-white shadow-md active:scale-95 transition-all cursor-pointer ${
+                  dialog.isDestructive
+                    ? 'bg-red-500 hover:bg-red-600 shadow-red-500/30'
+                    : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/30'
+                }`}
+              >
+                {dialog.actionLabel}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
