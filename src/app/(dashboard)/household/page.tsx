@@ -213,26 +213,49 @@ export default function HouseholdPage() {
   // Confirmación para ABANDONAR EL HOGAR (Tú mismo)
   const confirmLeaveHousehold = () => {
     if (!household || !currentUserId) return
+
+    const isLastMember = members.length === 1
+
     setDialog({
       isOpen: true,
-      title: 'Abandonar hogar',
-      description: `¿Estás seguro de que deseas salir de "${household.name}"? Perderás el acceso a esta despensa de inmediato.`,
-      actionLabel: 'Sí, salir',
+      title: isLastMember ? 'Eliminar y salir del hogar' : 'Abandonar hogar',
+      description: isLastMember
+        ? `Eres el único integrante de "${household.name}". Si sales, el hogar y todo su inventario se eliminarán permanentemente.`
+        : `¿Estás seguro de que deseas salir de "${household.name}"? Perderás el acceso a esta despensa de inmediato.`,
+      actionLabel: isLastMember ? 'Sí, eliminar hogar' : 'Sí, salir',
       isDestructive: true,
       actionFn: async () => {
-        const { error } = await supabase
-          .from('household_members')
-          .delete()
-          .eq('user_id', currentUserId)
-          .eq('household_id', household.id)
+        if (isLastMember) {
+          // Si es el último, borramos directamente de 'households'
+          const { error } = await supabase
+            .from('households')
+            .delete()
+            .eq('id', household.id)
 
-        if (error) {
-          toast.error('Error al salir del hogar')
+          if (error) {
+            toast.error('Error al eliminar el hogar', { description: error.message })
+          } else {
+            toast.success('El hogar ha sido eliminado')
+            setHousehold(null)
+            setMembers([])
+            loadHouseholdData()
+          }
         } else {
-          toast.success('Has abandonado el hogar')
-          setHousehold(null)
-          setMembers([])
-          loadHouseholdData()
+          // Si hay más miembros, solo nos borramos de household_members
+          const { error } = await supabase
+            .from('household_members')
+            .delete()
+            .eq('user_id', currentUserId)
+            .eq('household_id', household.id)
+
+          if (error) {
+            toast.error('Error al salir del hogar')
+          } else {
+            toast.success('Has abandonado el hogar')
+            setHousehold(null)
+            setMembers([])
+            loadHouseholdData()
+          }
         }
         setDialog(prev => ({ ...prev, isOpen: false }))
       }
