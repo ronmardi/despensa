@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { ArrowLeft, Users, Copy, Check, QrCode, UserPlus, Loader2, Share2, Pencil, X } from 'lucide-react'
+import { ArrowLeft, Users, Copy, Check, QrCode, UserPlus, Loader2, Share2, Pencil, X, User, Shield } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Household {
@@ -12,11 +12,21 @@ interface Household {
   invite_code: string
 }
 
+interface MemberProfile {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  email: string | null
+  role?: string
+}
+
 export default function HouseholdPage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [household, setHousehold] = useState<Household | null>(null)
-  const [membersCount, setMembersCount] = useState<number>(1)
+  const [members, setMembers] = useState<MemberProfile[]>([])
+  
   const [copiedLink, setCopiedLink] = useState(false)
   const [copiedCode, setCopiedCode] = useState(false)
   const [showQr, setShowQr] = useState(false)
@@ -27,41 +37,82 @@ export default function HouseholdPage() {
   const [newHouseholdName, setNewHouseholdName] = useState('')
   const [updatingName, setUpdatingName] = useState(false)
 
-  useEffect(() => {
-    async function loadHouseholdData() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data: memberData } = await supabase
-        .from('household_members')
-        .select('household_id, role')
-        .eq('user_id', user.id)
-        .maybeSingle()
-
-      if (memberData) {
-        const { data: hh } = await supabase
-          .from('households')
-          .select('*')
-          .eq('id', memberData.household_id)
-          .single()
-
-        if (hh) {
-          setHousehold(hh)
-          setNewHouseholdName(hh.name)
-        }
-
-        const { data: allMembers } = await supabase
-          .from('household_members')
-          .select('id')
-          .eq('household_id', memberData.household_id)
-
-        setMembersCount(allMembers && allMembers.length > 0 ? allMembers.length : 1)
-      }
+  const loadHouseholdData = useCallback(async () => {
+    setLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
       setLoading(false)
+      return
     }
+    setCurrentUserId(user.id)
 
-    loadHouseholdData()
+    // 1. Obtener membresía del usuario actual
+    const { data: memberData } = await supabase
+      .from('household_members')
+      .select('household_id, role')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (memberData) {
+      const hId = memberData.household_id
+
+      // 2. Obtener datos del hogar
+      const { data: hh } = await supabase
+        .from('households')
+        .select('*')
+        .eq('id', hId)
+        .single()
+
+      if (hh) {
+        setHousehold({
+          id: hh.id,
+          name: hh.name,
+          invite_code: hh.invite_code || hh.code || '',
+        })
+        setNewHouseholdName(hh.name)
+      }
+
+      // 3. Obtener miembros y roles
+      const { data: allMembers } = await supabase
+        .from('household_members')
+        .select('user_id, role')
+        .eq('household_id', hId)
+
+      if (allMembers && allMembers.length > 0) {
+        const userIds = allMembers.map((m) => m.user_id)
+
+        // 4. Obtener perfiles de usuarios
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url, email')
+          .in('id', userIds)
+
+        if (profilesData) {
+          const merged = profilesData.map((profile) => {
+            const mInfo = allMembers.find((m) => m.user_id === profile.id)
+            return {
+              ...profile,
+              role: mInfo?.role || 'member',
+            }
+          })
+
+          // Ordenar: administradores primero
+          merged.sort((a, b) => {
+            if (a.role === 'admin' || a.role === 'owner') return -1
+            if (b.role === 'admin' || b.role === 'owner') return 1
+            return 0
+          })
+
+          setMembers(merged)
+        }
+      }
+    }
+    setLoading(false)
   }, [supabase])
+
+  useEffect(() => {
+    loadHouseholdData()
+  }, [loadHouseholdData])
 
   const inviteUrl = household 
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/join?code=${household.invite_code}` 
@@ -120,7 +171,8 @@ export default function HouseholdPage() {
         })
       } catch (_) {}
     } else {
-      handleCopyLink()
+      const message = `¡Únete a mi hogar "${household.name}" en Mi Despensa!\n\nCódigo: *${household.invite_code}*\nO ingresa aquí: ${inviteUrl}`
+      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
     }
   }
 
@@ -131,10 +183,11 @@ export default function HouseholdPage() {
 
     setJoining(true)
     
+    // Buscar por invite_code o code
     const { data: hh } = await supabase
       .from('households')
       .select('id')
-      .eq('invite_code', cleanCode)
+      .or(`invite_code.eq.${cleanCode},code.eq.${cleanCode}`)
       .maybeSingle()
 
     if (!hh) {
@@ -145,6 +198,8 @@ export default function HouseholdPage() {
 
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
+      await supabase.from('household_members').delete().eq('user_id', user.id)
+
       const { error } = await supabase
         .from('household_members')
         .insert({ household_id: hh.id, user_id: user.id, role: 'member' })
@@ -153,7 +208,8 @@ export default function HouseholdPage() {
         toast.error('Error al unirse al hogar', { description: error.message })
       } else {
         toast.success('¡Te has unido al hogar con éxito!')
-        window.location.reload()
+        setJoinCode('')
+        loadHouseholdData()
       }
     }
     setJoining(false)
@@ -234,8 +290,65 @@ export default function HouseholdPage() {
             )}
 
             <p className="mt-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-              {membersCount} {membersCount === 1 ? 'integrante activo' : 'integrantes activos'}
+              {members.length} {members.length === 1 ? 'integrante activo' : 'integrantes activos'}
             </p>
+          </div>
+
+          {/* Lista de Integrantes con Rol y Avatar */}
+          <div className={`rounded-3xl p-5 space-y-3 ${glass3dClass}`}>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+              Integrantes del hogar
+            </h3>
+
+            <div className="space-y-2.5">
+              {members.map((member) => {
+                const isMe = member.id === currentUserId
+                const displayName = member.full_name || member.email?.split('@')[0] || 'Usuario'
+                const isAdmin = member.role === 'admin' || member.role === 'owner'
+
+                return (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-100/60 dark:bg-slate-800/60 border border-black/5 dark:border-white/5"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl overflow-hidden bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                        {member.avatar_url ? (
+                          <img src={member.avatar_url} alt={displayName} className="h-full w-full object-cover" />
+                        ) : (
+                          <User size={20} />
+                        )}
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                          {displayName}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className={`flex items-center gap-0.5 text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md border ${
+                            isAdmin 
+                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' 
+                              : 'bg-slate-200/50 dark:bg-slate-700/50 text-gray-500 dark:text-gray-400 border-black/5 dark:border-white/5'
+                          }`}>
+                            {isAdmin && <Shield size={9} />}
+                            {isAdmin ? 'Admin' : 'Miembro'}
+                          </span>
+                          <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                            {member.email}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {isMe && (
+                      <span className="shrink-0 rounded-full bg-indigo-500/15 px-2.5 py-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                        Tú
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
 
           {/* Opciones de Invitación */}
