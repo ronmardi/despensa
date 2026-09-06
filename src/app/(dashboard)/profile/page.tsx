@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, User, Camera, Save, Loader2 } from 'lucide-react'
+import { ArrowLeft, User, Camera, Save, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { FooterCredit } from '@/components/FooterCredit'
+import { DeleteAccountModal } from '@/components/DeleteAccountModal'
 
 export default function ProfilePage() {
   const supabase = createClient()
@@ -19,6 +20,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
   useEffect(() => {
     async function loadProfile() {
@@ -53,14 +55,12 @@ export default function ProfilePage() {
       
       const file = event.target.files[0]
 
-      // 1. Validación de tamaño (Máximo 15MB)
       if (file.size > 15 * 1024 * 1024) {
         toast.error('La imagen es demasiado grande. El tamaño máximo es 15MB.')
         setUploading(false)
         return
       }
 
-      // 2. Validación de tipo MIME
       const validTypes = ['image/jpeg', 'image/png', 'image/webp']
       if (!validTypes.includes(file.type)) {
         toast.error('Formato no válido. Solo se permiten imágenes JPG, PNG o WEBP.')
@@ -74,14 +74,12 @@ export default function ProfilePage() {
       const fileName = `${userId}-${Math.random()}.${fileExt}`
       const filePath = `${fileName}`
 
-      // Subir imagen al bucket
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file, { upsert: true })
 
       if (uploadError) throw uploadError
 
-      // Obtener URL pública
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath)
       setAvatarUrl(data.publicUrl)
       toast.success('Foto subida con éxito')
@@ -124,7 +122,6 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-md p-4 pb-28 min-h-screen flex flex-col">
-      
       <header className="mb-6 mt-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link 
@@ -143,8 +140,7 @@ export default function ProfilePage() {
       </header>
 
       <div className={`space-y-6 rounded-3xl p-6 ${glass3dClass}`}>
-        
-        {/* Foto de Perfil con encuadre automático */}
+        {/* Foto de Perfil */}
         <div className="flex flex-col items-center gap-4">
           <div className="relative h-28 w-28 overflow-hidden rounded-full border-4 border-white/80 dark:border-slate-700 shadow-lg bg-white/50 dark:bg-slate-800 flex items-center justify-center group">
             {uploading ? (
@@ -205,14 +201,30 @@ export default function ProfilePage() {
         <button 
           onClick={saveProfile}
           disabled={saving || uploading}
-          className="mt-6 w-full flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-indigo-500 to-purple-500 px-4 py-3.5 font-bold text-white shadow-lg hover:shadow-xl hover:opacity-90 disabled:opacity-50 transition-all active:scale-[0.98] cursor-pointer"
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-indigo-500 to-purple-500 px-4 py-3.5 font-bold text-white shadow-lg hover:shadow-xl hover:opacity-90 disabled:opacity-50 transition-all active:scale-[0.98] cursor-pointer text-sm"
         >
           {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save size={18} />}
           {saving ? 'Guardando...' : 'Guardar Perfil'}
         </button>
+
+        {/* Zona de Peligro: Eliminar Cuenta */}
+        <div className="pt-4 border-t border-red-500/20">
+          <button 
+            type="button"
+            onClick={() => setIsDeleteModalOpen(true)}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 font-bold text-red-600 dark:text-red-400 hover:bg-red-500/20 transition-all active:scale-[0.98] cursor-pointer text-xs"
+          >
+            <Trash2 size={16} />
+            Eliminar mi cuenta y datos
+          </button>
+        </div>
       </div>
 
-      {/* Footer de Raccoon Lab */}
+      <DeleteAccountModal 
+        isOpen={isDeleteModalOpen} 
+        onClose={() => setIsDeleteModalOpen(false)} 
+      />
+
       <div className="mt-auto pt-8 pb-4">
         <FooterCredit />
       </div>
