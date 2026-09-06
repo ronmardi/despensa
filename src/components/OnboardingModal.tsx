@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { PlusCircle, Users, Home, KeyRound, Loader2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
 import { createHouseholdAction, joinHouseholdAction } from '@/app/(dashboard)/pantry/actions'
 
 interface OnboardingModalProps {
@@ -13,7 +12,6 @@ interface OnboardingModalProps {
 }
 
 export function OnboardingModal({ userName, isOpen, onSuccess }: OnboardingModalProps) {
-  const router = useRouter()
   const [mode, setMode] = useState<'select' | 'create' | 'join'>('select')
   const [householdName, setHouseholdName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
@@ -21,35 +19,44 @@ export function OnboardingModal({ userName, isOpen, onSuccess }: OnboardingModal
 
   if (!isOpen) return null
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!householdName.trim()) return
+  const handleCreate = async () => {
+    if (!householdName.trim()) {
+      toast.error('Ingresa un nombre para tu hogar')
+      return
+    }
     setLoading(true)
 
     const res = await createHouseholdAction(householdName.trim())
     if (res.success) {
       toast.success('¡Hogar creado con éxito!')
-      router.refresh() // <--- Refresca los componentes del servidor en el cliente
-      onSuccess()
+      window.location.reload()
     } else {
       toast.error('Error al crear hogar', { description: res.error })
       setLoading(false)
     }
   }
 
-  const handleJoin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!inviteCode.trim()) return
+  const handleJoin = async () => {
+    if (!inviteCode.trim()) {
+      toast.error('Ingresa el código de invitación')
+      return
+    }
     setLoading(true)
 
     const res = await joinHouseholdAction(inviteCode.trim())
     if (res.success) {
       toast.success('¡Te has unido al hogar!')
-      router.refresh() // <--- Refresca los componentes del servidor en el cliente
-      onSuccess()
+      window.location.reload()
     } else {
       toast.error('Código inválido', { description: res.error })
       setLoading(false)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent, action: () => void) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      action()
     }
   }
 
@@ -75,6 +82,7 @@ export function OnboardingModal({ userName, isOpen, onSuccess }: OnboardingModal
         {mode === 'select' && (
           <div className="space-y-3">
             <button
+              type="button"
               onClick={() => setMode('create')}
               className="w-full flex items-center justify-between p-4 rounded-2xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 transition-all cursor-pointer group text-left"
             >
@@ -91,6 +99,7 @@ export function OnboardingModal({ userName, isOpen, onSuccess }: OnboardingModal
             </button>
 
             <button
+              type="button"
               onClick={() => setMode('join')}
               className="w-full flex items-center justify-between p-4 rounded-2xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 hover:border-purple-500/50 dark:hover:border-purple-500/50 transition-all cursor-pointer group text-left"
             >
@@ -109,16 +118,16 @@ export function OnboardingModal({ userName, isOpen, onSuccess }: OnboardingModal
         )}
 
         {mode === 'create' && (
-          <form onSubmit={handleCreate} className="space-y-4 text-left">
+          <div className="space-y-4 text-left">
             <div>
               <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
                 Nombre del Hogar
               </label>
               <input
                 type="text"
-                required
                 value={householdName}
                 onChange={(e) => setHouseholdName(e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, handleCreate)}
                 placeholder="Ej. Casa Martínez, Depto 402..."
                 className="w-full rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 px-3.5 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
               />
@@ -132,27 +141,28 @@ export function OnboardingModal({ userName, isOpen, onSuccess }: OnboardingModal
                 Volver
               </button>
               <button
-                type="submit"
+                type="button"
+                onClick={handleCreate}
                 disabled={loading}
                 className="w-2/3 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white cursor-pointer disabled:opacity-50"
               >
                 {loading ? <Loader2 className="animate-spin" size={16} /> : 'Crear e ingresar'}
               </button>
             </div>
-          </form>
+          </div>
         )}
 
         {mode === 'join' && (
-          <form onSubmit={handleJoin} className="space-y-4 text-left">
+          <div className="space-y-4 text-left">
             <div>
               <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
                 Código de Invitación
               </label>
               <input
                 type="text"
-                required
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value)}
+                onKeyDown={(e) => handleKeyDown(e, handleJoin)}
                 placeholder="Ingresa el código único..."
                 className="w-full rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 px-3.5 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
               />
@@ -166,14 +176,15 @@ export function OnboardingModal({ userName, isOpen, onSuccess }: OnboardingModal
                 Volver
               </button>
               <button
-                type="submit"
+                type="button"
+                onClick={handleJoin}
                 disabled={loading}
                 className="w-2/3 flex items-center justify-center gap-2 rounded-xl bg-purple-600 py-2.5 text-xs font-bold text-white cursor-pointer disabled:opacity-50"
               >
                 {loading ? <Loader2 className="animate-spin" size={16} /> : 'Unirme'}
               </button>
             </div>
-          </form>
+          </div>
         )}
 
       </div>
