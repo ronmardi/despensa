@@ -65,7 +65,10 @@ export function FloatingDock() {
   const glass3dClass = "backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border border-white/90 dark:border-slate-700/80 shadow-[0_12px_35px_rgba(0,0,0,0.12)] dark:shadow-[0_15px_40px_rgba(0,0,0,0.5)]"
 
   return (
-    <div className="fixed bottom-5 left-0 right-0 z-50 mx-auto w-full max-w-md px-4 flex items-center justify-between gap-2.5 pointer-events-none">
+    <div 
+      className="fixed left-0 right-0 z-50 mx-auto w-full max-w-md px-4 flex items-center justify-between gap-2.5 pointer-events-none transition-all duration-300"
+      style={{ bottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
+    >
       {/* Barra de Navegación Flotante Principal */}
       <nav className={`flex-1 flex items-center justify-around p-2 rounded-full pointer-events-auto ${glass3dClass}`}>
         {navItems.map((item) => {
