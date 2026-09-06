@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { FooterCredit } from '@/components/FooterCredit'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Fingerprint } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -30,6 +30,28 @@ export default function LoginPage() {
     
     if (error) {
       setErrorMsg(error.message)
+      setLoading(false)
+    }
+  }
+
+  // Nueva función para inicio de sesión biométrico (Passkey)
+  const handlePasskeyLogin = async () => {
+    setLoading(true)
+    setErrorMsg('')
+    
+    try {
+      const { data, error } = await supabase.auth.signInWithPasskey()
+      if (error) throw error
+      
+      // Si la autenticación biométrica es exitosa, redirigimos
+      if (data?.user) {
+        router.push('/pantry')
+        router.refresh()
+      }
+    } catch (err: any) {
+      setErrorMsg('No se pudo iniciar sesión con huella/FaceID.')
+      console.error(err)
+    } finally {
       setLoading(false)
     }
   }
@@ -109,9 +131,20 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Botón de Google */}
           {!isResetMode && (
             <>
+              {/* Botón Passkey (Biometría) */}
+              <button
+                type="button"
+                onClick={handlePasskeyLogin}
+                disabled={loading}
+                className="mb-3 w-full flex items-center justify-center gap-3 rounded-xl bg-slate-200/50 dark:bg-slate-800/50 border border-black/5 dark:border-white/5 px-4 py-3 text-xs font-bold text-gray-800 dark:text-gray-200 hover:bg-slate-300/50 dark:hover:bg-slate-700/50 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                <Fingerprint size={18} className="text-indigo-600 dark:text-indigo-400" />
+                Iniciar sesión con Huella / FaceID
+              </button>
+
+              {/* Botón de Google */}
               <button
                 type="button"
                 onClick={handleGoogleLogin}
