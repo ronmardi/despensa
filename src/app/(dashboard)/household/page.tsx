@@ -492,7 +492,7 @@ export default function HouseholdPage() {
             <div className="flex gap-2 pt-1">
               <button
                 onClick={handleShareLink}
-                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2.5 text-xs font-bold text-white shadow-md active:scale-95 transition-all cursor-pointer"
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-linear-to-r from-indigo-600 to-purple-600 px-4 py-2.5 text-xs font-bold text-white shadow-md active:scale-95 transition-all cursor-pointer"
               >
                 <Share2 size={15} />
                 Compartir por WhatsApp
