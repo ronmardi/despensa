@@ -1,15 +1,50 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Music, X } from 'lucide-react'
 import { usePathname } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 export function MusicPlayer() {
   const [isOpen, setIsOpen] = useState(false)
+  const [hasHousehold, setHasHousehold] = useState(false)
   const pathname = usePathname()
+  const supabase = createClient()
 
-  // Controla en qué ruta exacta será visible el botón del reproductor
-  const isVisible = pathname === '/pantry'
+  useEffect(() => {
+    async function checkHousehold() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setHasHousehold(false)
+        return
+      }
+
+      const { data } = await supabase
+        .from('household_members')
+        .select('household_id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      setHasHousehold(!!data)
+    }
+
+    checkHousehold()
+
+    const channel = supabase
+      .channel('music_household_check')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'household_members' }, () => {
+        checkHousehold()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [pathname, supabase])
+
+  const isVisible = pathname === '/pantry' && hasHousehold
+
+  if (!hasHousehold) return null
 
   return (
     <div 
@@ -17,8 +52,6 @@ export function MusicPlayer() {
         isVisible ? 'opacity-100 pointer-events-none' : 'opacity-0 pointer-events-none'
       }`}
     >
-      
-      {/* Contenedor del Reproductor con Spotify */}
       <div
         className={`transition-all duration-300 ease-in-out pointer-events-auto origin-bottom-right mb-3 ${
           isOpen && isVisible ? 'scale-100 opacity-100 translate-x-0' : 'scale-0 opacity-0 translate-x-10'
@@ -38,10 +71,9 @@ export function MusicPlayer() {
         </div>
       </div>
 
-      {/* Botón flotante */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        disabled={!isVisible} // Evita clics accidentales si el botón está invisible
+        disabled={!isVisible}
         className={`flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-br from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30 hover:scale-105 active:scale-95 transition-all duration-300 ${
           isVisible ? 'pointer-events-auto' : 'cursor-default'
         }`}
@@ -49,7 +81,6 @@ export function MusicPlayer() {
       >
         {isOpen ? <X size={24} /> : <Music size={24} />}
       </button>
-      
     </div>
   )
 }
