@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -9,6 +9,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { updateItemQuantityAction, deleteItemAction } from './actions'
 import { toast } from 'sonner'
 import { EditProductModal } from '@/components/EditProductModal'
+import { OnboardingModal } from '@/components/OnboardingModal'
 
 interface PantryItem {
   id: string
@@ -61,51 +62,62 @@ export default function PantryPage() {
   const [householdId, setHouseholdId] = useState<string | null>(null)
   const [householdName, setHouseholdName] = useState<string>('Mi Despensa')
   const [userEmail, setUserEmail] = useState<string>('')
+  const [userName, setUserName] = useState<string>('')
   const [editingItem, setEditingItem] = useState<PantryItem | null>(null)
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false)
 
   // Referencias para controlar el debounce individual por producto
   const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({})
   const pendingDeltas = useRef<{ [key: string]: number }>({})
 
-  useEffect(() => {
-    async function loadPantryItems() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      setUserEmail(user.email || '')
+  const loadPantryItems = useCallback(async () => {
+    setLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    
+    setUserEmail(user.email || '')
+    const nameFromAuth = user.user_metadata?.full_name || user.email?.split('@')[0] || ''
+    setUserName(nameFromAuth)
 
-      const { data: members } = await supabase
-        .from('household_members')
-        .select('household_id')
-        .eq('user_id', user.id)
+    const { data: members } = await supabase
+      .from('household_members')
+      .select('household_id')
+      .eq('user_id', user.id)
 
-      if (members && members.length > 0) {
-        const hId = members[0].household_id
-        setHouseholdId(hId)
+    if (members && members.length > 0) {
+      setIsOnboardingOpen(false)
+      const hId = members[0].household_id
+      setHouseholdId(hId)
 
-        // Obtener el nombre del hogar
-        const { data: hhData } = await supabase
-          .from('households')
-          .select('name')
-          .eq('id', hId)
-          .single()
+      // Obtener el nombre del hogar
+      const { data: hhData } = await supabase
+        .from('households')
+        .select('name')
+        .eq('id', hId)
+        .single()
 
-        if (hhData) {
-          setHouseholdName(hhData.name)
-        }
-
-        const { data: pantryItems } = await supabase
-          .from('items')
-          .select('*')
-          .eq('household_id', hId)
-          .order('name', { ascending: true })
-
-        if (pantryItems) setItems(pantryItems)
+      if (hhData) {
+        setHouseholdName(hhData.name)
       }
-      setLoading(false)
-    }
 
-    loadPantryItems()
+      const { data: pantryItems } = await supabase
+        .from('items')
+        .select('*')
+        .eq('household_id', hId)
+        .order('name', { ascending: true })
+
+      if (pantryItems) setItems(pantryItems)
+    } else {
+      // Si el usuario no pertenece a ningún hogar, activamos el flujo de bienvenida
+      setIsOnboardingOpen(true)
+      setItems([])
+    }
+    setLoading(false)
   }, [supabase])
+
+  useEffect(() => {
+    loadPantryItems()
+  }, [loadPantryItems])
 
   const categories = useMemo(() => {
     const uniqueCats = Array.from(new Set(items.map((item) => item.category).filter(Boolean)))
@@ -130,15 +142,12 @@ export default function PantryPage() {
     const previousQuantity = currentItem.current_quantity
     const newQuantity = Math.max(0, previousQuantity + delta)
 
-    // 1. Actualización de UI instantánea
     setItems((prevItems) =>
       prevItems.map((item) => (item.id === id ? { ...item, current_quantity: newQuantity } : item))
     )
 
-    // 2. Acumular el cambio
     pendingDeltas.current[id] = (pendingDeltas.current[id] || 0) + delta
 
-    // 3. Reiniciar temporizador si se presiona de nuevo antes de 500ms
     if (debounceTimers.current[id]) {
       clearTimeout(debounceTimers.current[id])
     }
@@ -150,7 +159,6 @@ export default function PantryPage() {
 
       if (totalDelta === 0) return
 
-      // 4. Sincronizar en servidor tras 500ms de inactividad
       const res = await updateItemQuantityAction(id, newQuantity, currentItem.name, totalDelta)
 
       if (!res.success) {
@@ -209,6 +217,16 @@ export default function PantryPage() {
 
   return (
     <div className="mx-auto max-w-md p-4 pb-28">
+      {/* Onboarding Flotante para nuevos usuarios */}
+      <OnboardingModal
+        userName={userName}
+        isOpen={isOnboardingOpen}
+        onSuccess={() => {
+          setIsOnboardingOpen(false)
+          loadPantryItems()
+        }}
+      />
+
       {editingItem && (
         <EditProductModal 
           item={editingItem} 
@@ -219,7 +237,7 @@ export default function PantryPage() {
         />
       )}
 
-      {/* Cabecera optimizada con ancho flexible para el nombre del hogar */}
+      {/* Cabecera con ancho flexible para el nombre del hogar */}
       <header className="mb-6 mt-4 flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm truncate">
@@ -317,13 +335,13 @@ export default function PantryPage() {
         <div className="flex justify-center py-12">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
         </div>
-      ) : items.length === 0 ? (
+      ) : items.length === 0 && !isOnboardingOpen ? (
         <div className={`rounded-3xl p-8 text-center ${glass3dClass}`}>
           <Package className="mx-auto mb-3 text-indigo-500" size={48} />
           <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200">Tu despensa está vacía</h2>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Presiona el botón flotante para registrar productos.</p>
         </div>
-      ) : filteredItems.length === 0 ? (
+      ) : filteredItems.length === 0 && !isOnboardingOpen ? (
         <div className={`rounded-3xl p-8 text-center ${glass3dClass}`}>
           <Search className="mx-auto mb-3 text-gray-400" size={40} />
           <h2 className="text-base font-bold text-gray-800 dark:text-gray-200">Sin coincidencias</h2>
@@ -350,7 +368,6 @@ export default function PantryPage() {
                   isLowStock ? 'ring-2 ring-amber-500/40 dark:ring-amber-500/30' : ''
                 }`}
               >
-                {/* Lado izquierdo adaptabilidad min-w-0 para prevenir colapsos en Mac/safari */}
                 <div className="flex-1 min-w-0 pr-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5 text-base truncate max-w-full">
@@ -368,7 +385,6 @@ export default function PantryPage() {
                   </p>
                 </div>
 
-                {/* Controles del lado derecho blindados para no comprimirse */}
                 <div className="flex items-center gap-1.5 shrink-0">
                   <div className="flex items-center gap-1 rounded-xl bg-slate-200/50 dark:bg-slate-950/50 p-1 border border-black/5 dark:border-white/5 shadow-inner">
                     <button
@@ -378,13 +394,12 @@ export default function PantryPage() {
                       <Minus size={15} />
                     </button>
                     
-                    {/* Disposición apilada verticalmente de número + unidad para ahorrar espacio */}
                     <div className="flex flex-col items-center justify-center min-w-10 px-1">
                       <span className="text-sm font-extrabold text-gray-900 dark:text-white leading-none">
                         {item.current_quantity}
                       </span>
                       <span className="text-[8px] font-medium text-gray-500 dark:text-gray-400 mt-0.5 uppercase tracking-wider truncate max-w-11.25">
-                      {item.unit}
+                        {item.unit}
                       </span>
                     </div>
 
