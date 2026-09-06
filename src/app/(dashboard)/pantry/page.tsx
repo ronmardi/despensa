@@ -1,14 +1,15 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Minus, Package, AlertTriangle, Trash2, LogOut, Search, X, User, Pencil } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { updateItemQuantityAction, deleteItemAction } from './actions'
 import { toast } from 'sonner'
 import { EditProductModal } from '@/components/EditProductModal'
+import { AddProductModal } from '@/components/AddProductModal'
 import { OnboardingModal } from '@/components/OnboardingModal'
 import { formatUnit } from '@/lib/utils/format'
 
@@ -59,9 +60,11 @@ function getProductEmoji(name: string): string {
   return '📦'
 }
 
-export default function PantryPage() {
+function PantryContent() {
   const supabase = createClient()
   const router = useRouter()
+  const searchParams = useSearchParams()
+
   const [items, setItems] = useState<PantryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -72,11 +75,24 @@ export default function PantryPage() {
   const [userName, setUserName] = useState<string>('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [editingItem, setEditingItem] = useState<PantryItem | null>(null)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false)
 
   const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({})
   const pendingDeltas = useRef<{ [key: string]: number }>({})
   const pendingDeletions = useRef<{ [key: string]: NodeJS.Timeout }>({})
+
+  // Controlar la apertura del modal al hacer clic en el botón '+'
+  useEffect(() => {
+    if (searchParams.get('add') === 'true') {
+      setIsAddModalOpen(true)
+    }
+  }, [searchParams])
+
+  const handleCloseAddModal = () => {
+    setIsAddModalOpen(false)
+    router.replace('/pantry')
+  }
 
   const loadPantryItems = useCallback(async () => {
     setLoading(true)
@@ -189,20 +205,16 @@ export default function PantryPage() {
     }, 500)
   }
 
-  // Manejo de eliminación con borrado diferido confiable
   const handleDeleteItem = (id: string) => {
     const itemToDelete = items.find((i) => i.id === id)
     if (!itemToDelete) return
 
-    // Eliminar de la UI de inmediato
     setItems((prev) => prev.filter((item) => item.id !== id))
 
-    // Limpiar cualquier temporizador previo si existía
     if (pendingDeletions.current[id]) {
       clearTimeout(pendingDeletions.current[id])
     }
 
-    // Programar el borrado real en la base de datos tras 4 segundos
     const timer = setTimeout(async () => {
       delete pendingDeletions.current[id]
       const res = await deleteItemAction(id, itemToDelete.name)
@@ -255,6 +267,17 @@ export default function PantryPage() {
           loadPantryItems()
         }}
       />
+
+      {isAddModalOpen && householdId && (
+        <AddProductModal
+          householdId={householdId}
+          onClose={handleCloseAddModal}
+          onSuccess={() => {
+            handleCloseAddModal()
+            loadPantryItems()
+          }}
+        />
+      )}
 
       {editingItem && (
         <EditProductModal 
@@ -450,5 +473,17 @@ export default function PantryPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function PantryPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex justify-center py-12">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
+      </div>
+    }>
+      <PantryContent />
+    </Suspense>
   )
 }
