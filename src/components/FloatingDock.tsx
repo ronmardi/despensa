@@ -1,11 +1,22 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Package, ShoppingCart, Clock, Users, Plus } from 'lucide-react'
+import { Package, ShoppingCart, Clock, Users } from 'lucide-react'
 
 export function FloatingDock() {
   const pathname = usePathname()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) return null
+
+  const isPantry = pathname === '/pantry' || pathname === '/pantry/'
+  if (!isPantry) return null
 
   const navItems = [
     { href: '/pantry', label: 'Despensa', icon: Package },
@@ -17,9 +28,8 @@ export function FloatingDock() {
   const glass3dClass = "backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border border-white/90 dark:border-slate-700/80 shadow-[0_12px_35px_rgba(0,0,0,0.12)] dark:shadow-[0_15px_40px_rgba(0,0,0,0.5)]"
 
   return (
-    <div className="fixed bottom-5 left-4 right-4 z-50 mx-auto max-w-md flex items-center gap-2.5 pointer-events-auto">
-      {/* Isla Flotante de Navegación */}
-      <nav className={`flex-1 flex items-center justify-around p-1.5 rounded-full ${glass3dClass}`}>
+    <div className="fixed bottom-5 left-4 right-4 z-50 mx-auto max-w-xs sm:max-w-sm pointer-events-auto">
+      <nav className={`w-full flex items-center justify-around p-1.5 rounded-full ${glass3dClass}`}>
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = pathname === item.href
@@ -40,15 +50,6 @@ export function FloatingDock() {
           )
         })}
       </nav>
-
-      {/* Botón Flotante Acción (+) Principal */}
-      <Link
-        href="/pantry/add"
-        className="flex h-13 w-13 shrink-0 items-center justify-center rounded-full bg-linear-to-tr from-indigo-600 via-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all duration-200"
-        title="Agregar producto"
-      >
-        <Plus size={26} strokeWidth={2.5} />
-      </Link>
     </div>
   )
 }
