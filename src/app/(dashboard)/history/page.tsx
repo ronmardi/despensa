@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { ArrowLeft, Clock, History as HistoryIcon, Plus, Minus, PackagePlus, Trash2, Pencil } from 'lucide-react'
+import { ArrowLeft, Clock, History as HistoryIcon, Plus, Minus, PackagePlus, Trash2, Pencil, ChevronDown, ChevronRight } from 'lucide-react'
 import { formatUnit } from '@/lib/utils/format'
 
 interface ActivityLog {
@@ -20,62 +20,86 @@ export default function HistoryPage() {
   const supabase = createClient()
   const [logs, setLogs] = useState<ActivityLog[]>([])
   const [loading, setLoading] = useState(true)
+  // Estado para controlar qué días están colapsados
+  const [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({})
 
-  useEffect(() => {
-    async function loadLogs() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+  const loadLogs = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-      const { data: members } = await supabase
-        .from('household_members')
-        .select('household_id')
-        .eq('user_id', user.id)
+    const { data: members } = await supabase
+      .from('household_members')
+      .select('household_id')
+      .eq('user_id', user.id)
 
-      if (members && members.length > 0) {
-        const householdId = members[0].household_id
+    if (members && members.length > 0) {
+      const householdId = members[0].household_id
+      
+      const { data: activityLogs } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .eq('household_id', householdId)
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      if (activityLogs) {
+        const uniqueEmails = Array.from(new Set(activityLogs.map(log => log.user_email).filter(Boolean)))
         
-        const { data: activityLogs } = await supabase
-          .from('activity_logs')
-          .select('*')
-          .eq('household_id', householdId)
-          .order('created_at', { ascending: false })
-          .limit(50)
-
-        if (activityLogs) {
-          const uniqueEmails = Array.from(new Set(activityLogs.map(log => log.user_email).filter(Boolean)))
-          
-          let emailToNameMap: Record<string, string> = {}
-          
-          if (uniqueEmails.length > 0) {
-            const { data: profiles } = await supabase
-              .from('profiles')
-              .select('email, full_name')
-              .in('email', uniqueEmails)
-              
-            if (profiles) {
-              profiles.forEach(profile => {
-                if (profile.full_name) {
-                  emailToNameMap[profile.email] = profile.full_name
-                }
-              })
-            }
+        let emailToNameMap: Record<string, string> = {}
+        
+        if (uniqueEmails.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('email, full_name')
+            .in('email', uniqueEmails)
+            
+          if (profiles) {
+            profiles.forEach(profile => {
+              if (profile.full_name) {
+                emailToNameMap[profile.email] = profile.full_name
+              }
+            })
           }
-
-          const logsWithNames = activityLogs.map(log => ({
-            ...log,
-            user_name: emailToNameMap[log.user_email] || log.user_email?.split('@')[0] || 'Usuario'
-          }))
-
-          setLogs(logsWithNames)
         }
-      }
-      setLoading(false)
-    }
 
-    loadLogs()
+        const logsWithNames = activityLogs.map(log => ({
+          ...log,
+          user_name: emailToNameMap[log.user_email] || log.user_email?.split('@')[0] || 'Usuario'
+        }))
+
+        setLogs(logsWithNames)
+      }
+    }
+    setLoading(false)
   }, [supabase])
 
-  // Lógica para etiquetar fechas ("Hoy", "Ayer", "05 sep", etc.)
+  useEffect(() => {
+    loadLogs()
+
+    // Sincronización en tiempo real
+    const channel = supabase
+      .channel('realtime_activity_logs')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'activity_logs' },
+        () => {
+          loadLogs()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [supabase, loadLogs])
+
+  const toggleDayCollapse = (dateLabel: string) => {
+    setCollapsedDays(prev => ({
+      ...prev,
+      [dateLabel]: !prev[dateLabel]
+    }))
+  }
+
   const getDateLabel = (isoString: string) => {
     const date = new Date(isoString)
     const now = new Date()
@@ -97,7 +121,6 @@ export default function HistoryPage() {
     })
   }
 
-  // Agrupar registros por etiqueta de fecha
   const groupedLogs = useMemo(() => {
     return logs.reduce((groups, log) => {
       const label = getDateLabel(log.created_at)
@@ -185,48 +208,62 @@ export default function HistoryPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {Object.entries(groupedLogs).map(([dateLabel, groupLogs]) => (
-            <div key={dateLabel} className="space-y-3">
-              {/* Encabezado del grupo de fecha */}
-              <div className="flex items-center gap-2 my-2 px-1">
-                <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-full">
-                  {dateLabel}
-                </span>
-                <div className="h-px flex-1 bg-linear-to-r from-indigo-500/20 via-gray-300 dark:via-gray-700 to-transparent" />
-              </div>
+          {Object.entries(groupedLogs).map(([dateLabel, groupLogs]) => {
+            const isCollapsed = !!collapsedDays[dateLabel]
 
-              {/* Timeline del grupo */}
-              <div className="relative border-l-2 border-indigo-500/30 ml-4 pl-4 space-y-4">
-                {groupLogs.map((log) => (
-                  <div key={log.id} className="relative">
-                    <div className="absolute -left-6.25 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-white shadow-md">
-                      {getActionIcon(log.action_type)}
-                    </div>
-
-                    <div className={`rounded-2xl p-4 transition-all ${glass3dClass}`}>
-                      <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-bold text-gray-900 dark:text-white text-base">
-                          {log.item_name}
-                        </h3>
-                        <span className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold border ${getActionStyles(log.action_type)}`}>
-                          {getActionText(log.action_type)}
-                        </span>
-                      </div>
-
-                      <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
-                        {formatDetails(log.details)}
-                      </p>
-
-                      <div className="mt-3 flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-500 border-t border-black/5 dark:border-white/5 pt-2">
-                        <span className="font-semibold text-gray-600 dark:text-gray-400 capitalize">{log.user_name}</span>
-                        <span>{formatTime(log.created_at)}</span>
-                      </div>
-                    </div>
+            return (
+              <div key={dateLabel} className="space-y-3">
+                {/* Botón interactivo para desplegar/contraer el día */}
+                <button
+                  type="button"
+                  onClick={() => toggleDayCollapse(dateLabel)}
+                  className="w-full flex items-center justify-between gap-2 my-2 px-1 text-left cursor-pointer group"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-full flex items-center gap-1.5 group-hover:bg-indigo-500/20 transition-all">
+                      {dateLabel}
+                      <span className="text-[10px] opacity-75">({groupLogs.length})</span>
+                      {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+                    </span>
                   </div>
-                ))}
+                  <div className="h-px flex-1 bg-linear-to-r from-indigo-500/20 via-gray-300 dark:via-gray-700 to-transparent" />
+                </button>
+
+                {/* Lista de registros del día (se oculta cuando isCollapsed es verdadero) */}
+                {!isCollapsed && (
+                  <div className="relative border-l-2 border-indigo-500/30 ml-4 pl-4 space-y-4 animate-in fade-in duration-200">
+                    {groupLogs.map((log) => (
+                      <div key={log.id} className="relative">
+                        <div className="absolute -left-6.25 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-white shadow-md">
+                          {getActionIcon(log.action_type)}
+                        </div>
+
+                        <div className={`rounded-2xl p-4 transition-all ${glass3dClass}`}>
+                          <div className="flex items-center justify-between mb-1">
+                            <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                              {log.item_name}
+                            </h3>
+                            <span className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold border ${getActionStyles(log.action_type)}`}>
+                              {getActionText(log.action_type)}
+                            </span>
+                          </div>
+
+                          <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                            {formatDetails(log.details)}
+                          </p>
+
+                          <div className="mt-3 flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-500 border-t border-black/5 dark:border-white/5 pt-2">
+                            <span className="font-semibold text-gray-600 dark:text-gray-400 capitalize">{log.user_name}</span>
+                            <span>{formatTime(log.created_at)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
