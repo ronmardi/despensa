@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { PlusCircle, Users, Home, KeyRound, Loader2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 import { createHouseholdAction, joinHouseholdAction } from '@/app/(dashboard)/pantry/actions'
 
 interface OnboardingModalProps {
@@ -12,6 +13,7 @@ interface OnboardingModalProps {
 }
 
 export function OnboardingModal({ userName, isOpen, onSuccess }: OnboardingModalProps) {
+  const router = useRouter()
   const [mode, setMode] = useState<'select' | 'create' | 'join'>('select')
   const [householdName, setHouseholdName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
@@ -27,11 +29,12 @@ export function OnboardingModal({ userName, isOpen, onSuccess }: OnboardingModal
     const res = await createHouseholdAction(householdName.trim())
     if (res.success) {
       toast.success('¡Hogar creado con éxito!')
+      router.refresh() // <--- Refresca los componentes del servidor en el cliente
       onSuccess()
     } else {
       toast.error('Error al crear hogar', { description: res.error })
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const handleJoin = async (e: React.FormEvent) => {
@@ -42,11 +45,12 @@ export function OnboardingModal({ userName, isOpen, onSuccess }: OnboardingModal
     const res = await joinHouseholdAction(inviteCode.trim())
     if (res.success) {
       toast.success('¡Te has unido al hogar!')
+      router.refresh() // <--- Refresca los componentes del servidor en el cliente
       onSuccess()
     } else {
       toast.error('Código inválido', { description: res.error })
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const glass3dClass = "backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 border border-white/80 dark:border-slate-700/60 shadow-2xl"
@@ -55,7 +59,6 @@ export function OnboardingModal({ userName, isOpen, onSuccess }: OnboardingModal
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className={`w-full max-w-md rounded-3xl p-6 text-center ${glass3dClass}`}>
         
-        {/* Cabecera de Bienvenida */}
         <div className="flex justify-center mb-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/20 border border-indigo-500/30 text-indigo-600 dark:text-indigo-400">
             <Sparkles size={24} />
@@ -69,7 +72,6 @@ export function OnboardingModal({ userName, isOpen, onSuccess }: OnboardingModal
           Bienvenido a Mi Despensa. Para comenzar a gestionar tu inventario, elige una opción:
         </p>
 
-        {/* Selección Inicial */}
         {mode === 'select' && (
           <div className="space-y-3">
             <button
@@ -106,7 +108,6 @@ export function OnboardingModal({ userName, isOpen, onSuccess }: OnboardingModal
           </div>
         )}
 
-        {/* Formulario Crear Hogar */}
         {mode === 'create' && (
           <form onSubmit={handleCreate} className="space-y-4 text-left">
             <div>
@@ -141,7 +142,6 @@ export function OnboardingModal({ userName, isOpen, onSuccess }: OnboardingModal
           </form>
         )}
 
-        {/* Formulario Unirse a Hogar */}
         {mode === 'join' && (
           <form onSubmit={handleJoin} className="space-y-4 text-left">
             <div>
