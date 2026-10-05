@@ -12,33 +12,55 @@ export function MusicPlayer() {
   const supabase = createClient()
 
   useEffect(() => {
-    async function checkHousehold() {
+    // Guardamos la referencia del canal para poder cerrarlo correctamente
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
+    async function setupMusicPlayer() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         setHasHousehold(false)
         return
       }
 
-      const { data } = await supabase
-        .from('household_members')
-        .select('household_id')
-        .eq('user_id', user.id)
-        .maybeSingle()
+      // Función local para chequear el estado actual del usuario
+      const checkHousehold = async () => {
+        const { data } = await supabase
+          .from('household_members')
+          .select('household_id')
+          .eq('user_id', user.id)
+          .maybeSingle()
 
-      setHasHousehold(!!data)
+        setHasHousehold(!!data)
+      }
+
+      // 1. Chequeo inicial
+      await checkHousehold()
+
+      // 2. Suscripción en tiempo real OPTIMIZADA (solo escucha a este usuario)
+      channel = supabase
+        .channel(`music_household_${user.id}`)
+        .on(
+          'postgres_changes', 
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'household_members',
+            filter: `user_id=eq.${user.id}` // <-- LA MAGIA ESTÁ AQUÍ
+          }, 
+          () => {
+            checkHousehold()
+          }
+        )
+        .subscribe()
     }
 
-    checkHousehold()
+    setupMusicPlayer()
 
-    const channel = supabase
-      .channel('music_household_check')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'household_members' }, () => {
-        checkHousehold()
-      })
-      .subscribe()
-
+    // Cleanup al desmontar o cambiar de ruta
     return () => {
-      supabase.removeChannel(channel)
+      if (channel) {
+        supabase.removeChannel(channel)
+      }
     }
   }, [pathname, supabase])
 
