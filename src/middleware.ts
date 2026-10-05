@@ -42,7 +42,14 @@ export async function middleware(request: NextRequest) {
   }
 
   // REGLA 2: Si NO está logueado e intenta entrar a rutas privadas, va al login
-  const isProtectedRoute = pathname.startsWith('/pantry') || pathname.startsWith('/shopping') || pathname.startsWith('/household')
+  // ¡CORREGIDO! Ahora protege el historial y el perfil.
+  const isProtectedRoute = 
+    pathname.startsWith('/pantry') || 
+    pathname.startsWith('/shopping') || 
+    pathname.startsWith('/household') ||
+    pathname.startsWith('/history') ||
+    pathname.startsWith('/profile')
+
   if (!user && isProtectedRoute) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
