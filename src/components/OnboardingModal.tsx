@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { PlusCircle, Users, Home, KeyRound, Loader2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
-import { createHouseholdAction, joinHouseholdAction } from '@/app/(dashboard)/pantry/actions'
+import { createHouseholdAction, joinHouseholdAction } from '@/app/(dashboard)/household/actions'
 
 interface OnboardingModalProps {
   userName?: string
