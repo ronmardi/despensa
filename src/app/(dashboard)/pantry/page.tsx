@@ -12,6 +12,7 @@ import { EditProductModal } from '@/components/EditProductModal'
 import { AddProductModal } from '@/components/AddProductModal'
 import { OnboardingModal } from '@/components/OnboardingModal'
 import { formatUnit } from '@/lib/utils/format'
+import { getProductEmoji } from '@/lib/utils/emoji'
 
 interface PantryItem {
   id: string
@@ -20,44 +21,7 @@ interface PantryItem {
   current_quantity: number
   min_threshold: number
   unit: string
-}
-
-function getProductEmoji(name: string): string {
-  const n = name.toLowerCase()
-  if (n.includes('arroz')) return '🍚'
-  if (n.includes('leche')) return '🥛'
-  if (n.includes('pan')) return '🍞'
-  if (n.includes('huevo')) return '🥚'
-  if (n.includes('carne')) return '🥩'
-  if (n.includes('pollo')) return '🍗'
-  if (n.includes('queso')) return '🧀'
-  if (n.includes('tomate')) return '🍅'
-  if (n.includes('cebolla')) return '🧅'
-  if (n.includes('papa')) return '🥔'
-  if (n.includes('manzana')) return '🍎'
-  if (n.includes('platano') || n.includes('banana')) return '🍌'
-  if (n.includes('pasta') || n.includes('fideo')) return '🍝'
-  if (n.includes('galleta')) return '🍪'
-  if (n.includes('chocolate')) return '🍫'
-  if (n.includes('azucar') || n.includes('azúcar') || n.includes('sal')) return '🧂'
-  if (n.includes('pescado') || n.includes('atun') || n.includes('atún')) return '🐟'
-  if (n.includes('yogur') || n.includes('cereal')) return '🥣'
-  if (n.includes('helado')) return '🍨'
-  
-  if (n.includes('agua')) return '💧'
-  if (n.includes('jugo')) return '🧃'
-  if (n.includes('bebida') || n.includes('soda') || n.includes('gaseosa')) return '🥤'
-  if (n.includes('cerveza')) return '🍺'
-  if (n.includes('vino')) return '🍷'
-  if (n.includes('cafe') || n.includes('café')) return '☕'
-  if (n.includes('te') || n.includes('té')) return '🍵'
-
-  if (n.includes('cloro') || n.includes('desinfectante') || n.includes('limpiador')) return '🧹'
-  if (n.includes('shampoo') || n.includes('champú') || n.includes('acondicionador')) return '🧴'
-  if (n.includes('jabon') || n.includes('jabón') || n.includes('detergente') || n.includes('lava')) return '🧼'
-  if (n.includes('papel') || n.includes('higienico')) return '🧻'
-
-  return '📦'
+  emoji?: string | null
 }
 
 function PantryContent() {
@@ -82,7 +46,6 @@ function PantryContent() {
   const pendingDeltas = useRef<{ [key: string]: number }>({})
   const pendingDeletions = useRef<{ [key: string]: NodeJS.Timeout }>({})
 
-  // Controlar la apertura del modal al hacer clic en el botón '+'
   useEffect(() => {
     if (searchParams.get('add') === 'true') {
       setIsAddModalOpen(true)
@@ -194,7 +157,8 @@ function PantryContent() {
 
       if (totalDelta === 0) return
 
-      const res = await updateItemQuantityAction(id, newQuantity, currentItem.name, totalDelta)
+      // ¡AQUÍ ESTÁ LA CORRECCIÓN! Pasamos 3 argumentos, no 4.
+      const res = await updateItemQuantityAction(id, currentItem.name, totalDelta)
 
       if (!res.success) {
         toast.error(`Error al actualizar ${currentItem.name}`, { description: res.error })
@@ -289,7 +253,6 @@ function PantryContent() {
         />
       )}
 
-      {/* Cabecera */}
       <header className="mb-6 mt-4 flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white drop-shadow-sm truncate">
@@ -409,7 +372,9 @@ function PantryContent() {
                 <div className="flex-1 min-w-0 pr-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5 text-base truncate max-w-full">
-                      <span className="text-2xl filter drop-shadow-sm shrink-0">{getProductEmoji(item.name)}</span>
+                      <span className="text-2xl filter drop-shadow-sm shrink-0">
+                        {item.emoji || getProductEmoji(item.name, item.category)}
+                      </span>
                       <span className="truncate">{item.name}</span>
                     </h3>
                     {isLowStock && (
