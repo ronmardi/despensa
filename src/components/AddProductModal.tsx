@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { X, Loader2, Plus, Package } from 'lucide-react'
 import { toast } from 'sonner'
+import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react'
+import { getProductEmoji } from '@/lib/utils/emoji'
 
 interface AddProductModalProps {
   householdId: string
@@ -42,6 +44,13 @@ export function AddProductModal({ householdId, onClose, onSuccess }: AddProductM
   const [currentQuantity, setCurrentQuantity] = useState('1')
   const [minThreshold, setMinThreshold] = useState('1')
   const [unit, setUnit] = useState('uds')
+  
+  // Nuevos estados para el selector de emojis
+  const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null)
+  const [showPicker, setShowPicker] = useState(false)
+
+  // El emoji que se muestra es el seleccionado manualmente, o el adivinado por tu motor, o la caja por defecto
+  const displayEmoji = selectedEmoji || getProductEmoji(name, category)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -63,6 +72,7 @@ export function AddProductModal({ householdId, onClose, onSuccess }: AddProductM
         current_quantity: parseFloat(currentQuantity) || 0,
         min_threshold: parseFloat(minThreshold) || 0,
         unit,
+        emoji: selectedEmoji, // <-- Guardamos el emoji personalizado si existe
         last_updated_by: user?.id || null
       })
 
@@ -104,15 +114,47 @@ export function AddProductModal({ householdId, onClose, onSuccess }: AddProductM
             <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
               Nombre del producto
             </label>
-            <input
-              type="text"
-              placeholder="Ej. Leche entera, Arroz..."
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-xl bg-slate-100/80 dark:bg-slate-950/80 border border-black/5 dark:border-white/10 px-3.5 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-              autoFocus
-              required
-            />
+            <div className="relative flex items-center gap-2">
+              {/* Botón interactivo del Emoji */}
+              <button
+                type="button"
+                onClick={() => setShowPicker(!showPicker)}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100/80 dark:bg-slate-950/80 border border-black/5 dark:border-white/10 text-2xl hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-inner"
+                title="Elegir emoji manualmente"
+              >
+                {displayEmoji}
+              </button>
+
+              <input
+                type="text"
+                placeholder="Ej. Leche entera, Arroz..."
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="h-11 flex-1 rounded-xl bg-slate-100/80 dark:bg-slate-950/80 border border-black/5 dark:border-white/10 px-3.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                autoFocus
+                required
+              />
+
+              {/* Menú flotante de Emoji Picker */}
+              {showPicker && (
+                <div className="absolute top-14 left-0 z-50 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="fixed inset-0" onClick={() => setShowPicker(false)} />
+                  <div className="relative shadow-2xl rounded-xl overflow-hidden border border-black/10 dark:border-white/10">
+                    <EmojiPicker
+                      onEmojiClick={(emojiData: EmojiClickData) => {
+                        setSelectedEmoji(emojiData.emoji)
+                        setShowPicker(false)
+                      }}
+                      theme={Theme.AUTO}
+                      searchPlaceHolder="Buscar..."
+                      width={300}
+                      height={350}
+                      previewConfig={{ showPreview: false }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
