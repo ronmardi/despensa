@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { toPng } from 'html-to-image'
 import { updateItemQuantityAction } from '../pantry/actions'
 import { formatUnit } from '@/lib/utils/format'
+import { getProductEmoji } from '@/lib/utils/emoji' // <-- Importamos tu motor inteligente
 
 interface PantryItem {
   id: string
@@ -17,26 +18,7 @@ interface PantryItem {
   min_threshold: number
   ideal_quantity: number
   unit: string
-}
-
-function getProductEmoji(name: string): string {
-  const n = name.toLowerCase()
-  if (n.includes('arroz')) return '🍚'
-  if (n.includes('leche')) return '🥛'
-  if (n.includes('pan')) return '🍞'
-  if (n.includes('huevo')) return '🥚'
-  if (n.includes('carne')) return '🥩'
-  if (n.includes('pollo')) return '🍗'
-  if (n.includes('queso')) return '🧀'
-  if (n.includes('tomate')) return '🍅'
-  if (n.includes('cebolla')) return '🧅'
-  if (n.includes('papa')) return '🥔'
-  if (n.includes('manzana')) return '🍎'
-  if (n.includes('platano') || n.includes('banana')) return '🍌'
-  if (n.includes('agua')) return '💧'
-  if (n.includes('jabon') || n.includes('jabón') || n.includes('cloro')) return '🧼'
-  if (n.includes('papel') || n.includes('higienico')) return '🧻'
-  return '📦'
+  emoji?: string | null // <-- Soporte para emoji personalizado
 }
 
 export default function ShoppingListPage() {
@@ -173,9 +155,9 @@ export default function ShoppingListPage() {
       if (!item) continue
 
       const addAmount = buyQuantities[id] || 1
-      const newQuantity = item.current_quantity + addAmount
 
-      const res = await updateItemQuantityAction(id, newQuantity, item.name, addAmount)
+      // ¡CORREGIDO! Pasamos 3 argumentos a la acción de base de datos
+      const res = await updateItemQuantityAction(id, item.name, addAmount)
       if (res.success) {
         successCount++
       } else {
@@ -273,7 +255,10 @@ export default function ShoppingListPage() {
                           
                           <div className={`min-w-0 flex-1 transition-all ${isChecked ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'}`}>
                             <h3 className="font-bold flex items-center gap-2 text-base truncate">
-                              <span className="text-xl filter drop-shadow-sm shrink-0">{getProductEmoji(item.name)}</span>
+                              {/* USANDO EL EMOJI PERSONALIZADO O INTELIGENTE AQUÍ */}
+                              <span className="text-xl filter drop-shadow-sm shrink-0">
+                                {item.emoji || getProductEmoji(item.name, item.category)}
+                              </span>
                               <span className="truncate">{item.name}</span>
                             </h3>
                           </div>
