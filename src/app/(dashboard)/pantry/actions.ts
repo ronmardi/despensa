@@ -3,81 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
-function generateInviteCode() {
-  return Math.random().toString(36).substring(2, 8).toUpperCase()
-}
-
-export async function createHouseholdAction(name: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'No autorizado' }
-
-  const inviteCode = generateInviteCode()
-
-  // 1. Crear registro del hogar
-  const { data: household, error: householdError } = await supabase
-    .from('households')
-    .insert([{ name, invite_code: inviteCode, owner_id: user.id }])
-    .select()
-    .single()
-
-  if (householdError) return { success: false, error: householdError.message }
-
-  // 2. Vincular usuario en household_members
-  const { error: memberError } = await supabase
-    .from('household_members')
-    .insert([{ household_id: household.id, user_id: user.id, role: 'owner' }])
-
-  if (memberError) return { success: false, error: memberError.message }
-
-  // 3. Registrar actividad inicial
-  await supabase.from('activity_logs').insert([{
-    household_id: household.id,
-    item_name: name,
-    action_type: 'CREATE_HOUSEHOLD',
-    details: `Creó el hogar "${name}"`,
-    user_email: user.email
-  }])
-
-  return { success: true, household }
-}
-
-export async function joinHouseholdAction(inviteCode: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'No autorizado' }
-
-  // 1. Buscar hogar por código de invitación
-  const { data: household, error: householdError } = await supabase
-    .from('households')
-    .select('id, name')
-    .eq('invite_code', inviteCode.trim().toUpperCase())
-    .single()
-
-  if (householdError || !household) {
-    return { success: false, error: 'Código de invitación inválido o no encontrado' }
-  }
-
-  // 2. Unir al usuario como miembro
-  const { error: memberError } = await supabase
-    .from('household_members')
-    .insert([{ household_id: household.id, user_id: user.id, role: 'member' }])
-
-  if (memberError) return { success: false, error: memberError.message }
-
-  // 3. Registrar actividad
-  await supabase.from('activity_logs').insert([{
-    household_id: household.id,
-    item_name: household.name,
-    action_type: 'JOIN_HOUSEHOLD',
-    details: `Se unió al hogar`,
-    user_email: user.email
-  }])
-
-  return { success: true }
-}
-
-export async function updateItemQuantityAction(itemId: string, newQuantity: number, itemName: string, difference: number) {
+export async function updateItemQuantityAction(itemId: string, itemName: string, difference: number) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'No autorizado' }
@@ -90,14 +16,17 @@ export async function updateItemQuantityAction(itemId: string, newQuantity: numb
 
   if (!member) return { success: false, error: 'Sin hogar asignado' }
 
-  const { error: updateError } = await supabase
-    .from('items')
-    .update({ current_quantity: newQuantity })
-    .eq('id', itemId)
-    .eq('household_id', member.household_id)
+  // 1. Llamada atómica a la base de datos (RPC)
+  const { data: newQuantity, error: updateError } = await supabase
+    .rpc('increment_item_quantity', {
+      p_item_id: itemId,
+      p_household_id: member.household_id,
+      p_delta: difference
+    })
 
   if (updateError) return { success: false, error: updateError.message }
 
+  // 2. Registrar actividad con el nuevo total devuelto por el servidor
   const actionType = difference > 0 ? 'INCREASE' : 'DECREASE'
   const actionText = difference > 0 ? 'Agregó' : 'Consumió'
   const diffAbs = Math.abs(difference)
