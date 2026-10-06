@@ -11,7 +11,7 @@ export function FloatingDock() {
   const supabase = createClient()
   const [mounted, setMounted] = useState(false)
   const [hasHousehold, setHasHousehold] = useState<boolean>(false)
-  const [isExpanded, setIsExpanded] = useState(false) // <-- Controla si el menú está abierto o cerrado
+  const [isExpanded, setIsExpanded] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -36,7 +36,6 @@ export function FloatingDock() {
 
       await checkHousehold()
 
-      // Suscripción OPTIMIZADA (igual que el MusicPlayer, ahorra recursos)
       channel = supabase
         .channel(`dock_household_${user.id}`)
         .on(
@@ -61,7 +60,6 @@ export function FloatingDock() {
     }
   }, [pathname, supabase])
 
-  // Cierra el menú automáticamente cuando el usuario cambia de página
   useEffect(() => {
     setIsExpanded(false)
   }, [pathname])
@@ -77,15 +75,12 @@ export function FloatingDock() {
     { href: '/household', label: 'Hogar', icon: Users },
   ]
 
-  // NUEVO ESTILO: Ultra transparente, mayor desenfoque y con iluminación superior 3D
   const glass3dClass = "backdrop-blur-2xl bg-white/30 dark:bg-slate-800/40 border border-white/50 dark:border-slate-600/40 shadow-[0_8px_30px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)]"
   
-  // NUEVO ESTILO: Botón Agregar en 3D
   const btn3dClass = "bg-linear-to-br from-indigo-500 to-purple-600 text-white shadow-[0_8px_20px_rgba(79,70,229,0.3),inset_0_2px_2px_rgba(255,255,255,0.4)] dark:shadow-[0_8px_20px_rgba(79,70,229,0.4),inset_0_2px_2px_rgba(255,255,255,0.2)]"
 
   return (
     <>
-      {/* Capa invisible a pantalla completa: al hacer clic fuera de la barra, la cierra */}
       {isExpanded && (
         <div 
           className="fixed inset-0 z-40" 
@@ -93,18 +88,16 @@ export function FloatingDock() {
         />
       )}
 
-      {/* Contenedor Base */}
       <div 
         className="fixed inset-x-0 z-50 mx-auto w-full max-w-md h-14 pointer-events-none"
         style={{ bottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
       >
-        {/* Contenedor Animado del Menú (Se centra cuando está cerrado, se va a la izquierda cuando abre) */}
         <div 
           className={`absolute bottom-0 h-14 flex items-center justify-center pointer-events-none transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
-            isExpanded ? 'left-4 right-[4.5rem]' : 'left-0 right-0'
+            /* CORRECCIÓN 1: right-18 en lugar de right-[4.5rem] */
+            isExpanded ? 'left-4 right-18' : 'left-0 right-0'
           }`}
         >
-          {/* ESTADO 1: Botón Contraído Central */}
           <button
             onClick={() => setIsExpanded(true)}
             className={`absolute px-6 py-3.5 rounded-full flex items-center gap-2 pointer-events-auto transition-all duration-500 ease-out ${glass3dClass} ${
@@ -117,12 +110,12 @@ export function FloatingDock() {
             <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-wide drop-shadow-sm">Menú</span>
           </button>
 
-          {/* ESTADO 2: Barra de Navegación Expandida */}
           <nav 
-            className={`absolute w-full flex items-center justify-around p-1.5 rounded-[2rem] pointer-events-auto transition-all duration-500 ease-out ${glass3dClass} ${
+            className={`absolute w-full flex items-center justify-around p-1.5 transition-all duration-500 ease-out pointer-events-auto ${glass3dClass} ${
+              /* CORRECCIÓN 2: rounded-full en lugar de rounded-[2rem] */
               isExpanded 
-                ? 'opacity-100 scale-100 translate-y-0' 
-                : 'opacity-0 scale-75 translate-y-8 pointer-events-none'
+                ? 'opacity-100 scale-100 translate-y-0 rounded-full' 
+                : 'opacity-0 scale-75 translate-y-8 pointer-events-none rounded-full'
             }`}
           >
             {navItems.map((item) => {
@@ -136,7 +129,6 @@ export function FloatingDock() {
                   onClick={() => setIsExpanded(false)}
                   className={`flex flex-col items-center justify-center py-2 px-3 rounded-2xl text-[10px] font-bold transition-all duration-300 ${
                     isActive
-                      // Efecto hundido para el botón activo
                       ? 'text-indigo-700 dark:text-indigo-300 scale-105 bg-white/40 dark:bg-slate-700/50 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]'
                       : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                   }`}
@@ -149,7 +141,6 @@ export function FloatingDock() {
           </nav>
         </div>
 
-        {/* Botón Flotante de Agregar (+) - Fijo a la derecha para alinearse con la música */}
         <div className="absolute bottom-0 right-4 pointer-events-auto">
           <Link
             href="/pantry?add=true"
