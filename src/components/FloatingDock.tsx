@@ -77,7 +77,11 @@ export function FloatingDock() {
     { href: '/household', label: 'Hogar', icon: Users },
   ]
 
-  const glass3dClass = "backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 border border-black/5 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_10px_40px_rgba(0,0,0,0.5)]"
+  // NUEVO ESTILO: Ultra transparente, mayor desenfoque y con iluminación superior 3D
+  const glass3dClass = "backdrop-blur-2xl bg-white/30 dark:bg-slate-800/40 border border-white/50 dark:border-slate-600/40 shadow-[0_8px_30px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)]"
+  
+  // NUEVO ESTILO: Botón Agregar en 3D
+  const btn3dClass = "bg-linear-to-br from-indigo-500 to-purple-600 text-white shadow-[0_8px_20px_rgba(79,70,229,0.3),inset_0_2px_2px_rgba(255,255,255,0.4)] dark:shadow-[0_8px_20px_rgba(79,70,229,0.4),inset_0_2px_2px_rgba(255,255,255,0.2)]"
 
   return (
     <>
@@ -89,32 +93,36 @@ export function FloatingDock() {
         />
       )}
 
+      {/* Contenedor Base */}
       <div 
-        className="fixed left-0 right-0 z-50 mx-auto w-full max-w-md px-4 flex items-end justify-between gap-3 pointer-events-none transition-all duration-300"
-        style={{ bottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }} // <-- Bajamos el margen para pegarlo más al borde inferior
+        className="fixed inset-x-0 z-50 mx-auto w-full max-w-md h-14 pointer-events-none"
+        style={{ bottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
       >
-        {/* Lado Izquierdo: Contenedor Dinámico del Menú */}
-        <div className={`relative flex pointer-events-auto transition-all duration-300 origin-bottom-left ${isExpanded ? 'flex-1 w-full' : 'w-auto'}`}>
-          
-          {/* ESTADO 1: Botón Contraído (Pastilla pequeña) */}
+        {/* Contenedor Animado del Menú (Se centra cuando está cerrado, se va a la izquierda cuando abre) */}
+        <div 
+          className={`absolute bottom-0 h-14 flex items-center justify-center pointer-events-none transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+            isExpanded ? 'left-4 right-[4.5rem]' : 'left-0 right-0'
+          }`}
+        >
+          {/* ESTADO 1: Botón Contraído Central */}
           <button
             onClick={() => setIsExpanded(true)}
-            className={`flex items-center gap-2 px-5 py-3.5 rounded-full transition-all duration-300 ${glass3dClass} ${
+            className={`absolute px-6 py-3.5 rounded-full flex items-center gap-2 pointer-events-auto transition-all duration-500 ease-out ${glass3dClass} ${
               isExpanded 
-                ? 'opacity-0 scale-90 pointer-events-none absolute bottom-0 left-0' 
-                : 'opacity-100 scale-100 relative'
+                ? 'opacity-0 scale-50 translate-y-8 pointer-events-none' 
+                : 'opacity-100 scale-100 translate-y-0'
             }`}
           >
-            <Menu size={20} className="text-gray-800 dark:text-gray-200" />
-            <span className="text-sm font-bold text-gray-800 dark:text-gray-200">Menú</span>
+            <Menu size={20} className="text-gray-800 dark:text-gray-200 drop-shadow-sm" />
+            <span className="text-sm font-bold text-gray-800 dark:text-gray-200 tracking-wide drop-shadow-sm">Menú</span>
           </button>
 
           {/* ESTADO 2: Barra de Navegación Expandida */}
           <nav 
-            className={`flex w-full items-center justify-around p-2 rounded-3xl transition-all duration-300 ${glass3dClass} ${
+            className={`absolute w-full flex items-center justify-around p-1.5 rounded-[2rem] pointer-events-auto transition-all duration-500 ease-out ${glass3dClass} ${
               isExpanded 
-                ? 'opacity-100 scale-100 translate-y-0 relative pointer-events-auto' 
-                : 'opacity-0 scale-95 translate-y-4 absolute bottom-0 left-0 pointer-events-none'
+                ? 'opacity-100 scale-100 translate-y-0' 
+                : 'opacity-0 scale-75 translate-y-8 pointer-events-none'
             }`}
           >
             {navItems.map((item) => {
@@ -126,28 +134,31 @@ export function FloatingDock() {
                   key={item.href}
                   href={item.href}
                   onClick={() => setIsExpanded(false)}
-                  className={`flex flex-col items-center justify-center py-2 px-3 rounded-2xl text-[10px] font-bold transition-all ${
+                  className={`flex flex-col items-center justify-center py-2 px-3 rounded-2xl text-[10px] font-bold transition-all duration-300 ${
                     isActive
-                      ? 'text-indigo-600 dark:text-indigo-400 scale-105 bg-indigo-500/10'
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                      // Efecto hundido para el botón activo
+                      ? 'text-indigo-700 dark:text-indigo-300 scale-105 bg-white/40 dark:bg-slate-700/50 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
-                  <Icon size={20} className="mb-1" />
-                  <span>{item.label}</span>
+                  <Icon size={22} className="mb-1 drop-shadow-sm" />
+                  <span className="drop-shadow-sm">{item.label}</span>
                 </Link>
               )
             })}
           </nav>
         </div>
 
-        {/* Lado Derecho: Botón Flotante de Agregar (+) siempre visible */}
-        <Link
-          href="/pantry?add=true"
-          className="flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30 hover:scale-105 active:scale-95 transition-all pointer-events-auto shrink-0"
-          title="Agregar producto"
-        >
-          <Plus size={26} />
-        </Link>
+        {/* Botón Flotante de Agregar (+) - Fijo a la derecha para alinearse con la música */}
+        <div className="absolute bottom-0 right-4 pointer-events-auto">
+          <Link
+            href="/pantry?add=true"
+            className={`flex h-14 w-14 items-center justify-center rounded-full hover:scale-105 active:scale-95 transition-all shrink-0 ${btn3dClass}`}
+            title="Agregar producto"
+          >
+            <Plus size={28} className="drop-shadow-md" />
+          </Link>
+        </div>
       </div>
     </>
   )
