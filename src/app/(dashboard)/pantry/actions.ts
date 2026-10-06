@@ -82,7 +82,7 @@ export async function deleteItemAction(itemId: string, itemName: string) {
 
 export async function editItemAction(
   itemId: string,
-  data: { name: string; category: string; unit: string; min_threshold: number }
+  data: { name: string; category: string; unit: string; min_threshold: number; emoji?: string | null }
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -102,7 +102,8 @@ export async function editItemAction(
       name: data.name,
       category: data.category,
       unit: data.unit,
-      min_threshold: data.min_threshold
+      min_threshold: data.min_threshold,
+      emoji: data.emoji
     })
     .eq('id', itemId)
     .eq('household_id', member.household_id)

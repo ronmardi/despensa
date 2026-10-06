@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { X, Save, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react'
+import { getProductEmoji } from '@/lib/utils/emoji'
 import { editItemAction } from '@/app/(dashboard)/pantry/actions'
 
 interface EditProductModalProps {
@@ -12,6 +14,7 @@ interface EditProductModalProps {
     category: string
     unit: string
     min_threshold: number
+    emoji?: string | null
   }
   onClose: () => void
   onSuccess: (updatedItem: any) => void
@@ -22,7 +25,12 @@ export function EditProductModal({ item, onClose, onSuccess }: EditProductModalP
   const [category, setCategory] = useState(item.category || 'Despensa')
   const [unit, setUnit] = useState(item.unit || 'unidades')
   const [minThreshold, setMinThreshold] = useState(item.min_threshold || 1)
+  
+  const [selectedEmoji, setSelectedEmoji] = useState<string | null>(item.emoji || null)
+  const [showPicker, setShowPicker] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  const displayEmoji = selectedEmoji || getProductEmoji(name, category)
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,11 +41,13 @@ export function EditProductModal({ item, onClose, onSuccess }: EditProductModalP
 
     setLoading(true)
 
+    // Aquí llamamos a la acción con el emoji
     const res = await editItemAction(item.id, {
       name: name.trim(),
       category,
       unit,
-      min_threshold: Number(minThreshold)
+      min_threshold: Number(minThreshold),
+      emoji: selectedEmoji 
     })
 
     if (res.success) {
@@ -47,7 +57,8 @@ export function EditProductModal({ item, onClose, onSuccess }: EditProductModalP
         name: name.trim(),
         category,
         unit,
-        min_threshold: Number(minThreshold)
+        min_threshold: Number(minThreshold),
+        emoji: selectedEmoji
       })
       onClose()
     } else {
@@ -76,13 +87,45 @@ export function EditProductModal({ item, onClose, onSuccess }: EditProductModalP
             <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
               Nombre
             </label>
-            <input 
-              type="text" 
-              required
-              value={name} 
-              onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 px-3.5 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-inner transition-all"
-            />
+            <div className="relative flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowPicker(!showPicker)}
+                /* CORRECCIÓN DE TAILWIND: h-10.5 y w-10.5 en lugar de [42px] */
+                className="flex h-10.5 w-10.5 shrink-0 items-center justify-center rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 text-xl hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-inner"
+                title="Elegir emoji manualmente"
+              >
+                {displayEmoji}
+              </button>
+
+              <input 
+                type="text" 
+                required
+                value={name} 
+                onChange={(e) => setName(e.target.value)}
+                /* CORRECCIÓN DE TAILWIND: h-10.5 en lugar de [42px] */
+                className="h-10.5 flex-1 rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 px-3.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-inner transition-all"
+              />
+
+              {showPicker && (
+                <div className="absolute top-12 left-0 z-50 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="fixed inset-0" onClick={() => setShowPicker(false)} />
+                  <div className="relative shadow-2xl rounded-xl overflow-hidden border border-black/10 dark:border-white/10">
+                    <EmojiPicker
+                      onEmojiClick={(emojiData: EmojiClickData) => {
+                        setSelectedEmoji(emojiData.emoji)
+                        setShowPicker(false)
+                      }}
+                      theme={Theme.AUTO}
+                      searchPlaceHolder="Buscar..."
+                      width={280}
+                      height={350}
+                      previewConfig={{ showPreview: false }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
