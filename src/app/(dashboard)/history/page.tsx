@@ -9,7 +9,7 @@ import { formatUnit } from '@/lib/utils/format'
 interface ActivityLog {
   id: string
   item_name: string
-  action_type: 'ADD' | 'INCREASE' | 'DECREASE' | 'DELETE'
+  action_type: 'ADD' | 'INCREASE' | 'DECREASE' | 'DELETE' | 'UPDATE'
   details: string
   user_email: string
   user_name?: string
@@ -20,7 +20,6 @@ export default function HistoryPage() {
   const supabase = createClient()
   const [logs, setLogs] = useState<ActivityLog[]>([])
   const [loading, setLoading] = useState(true)
-  // Estado para controlar qué días están colapsados
   const [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({})
 
   const loadLogs = useCallback(async () => {
@@ -76,7 +75,6 @@ export default function HistoryPage() {
   useEffect(() => {
     loadLogs()
 
-    // Sincronización en tiempo real
     const channel = supabase
       .channel('realtime_activity_logs')
       .on(
@@ -136,6 +134,7 @@ export default function HistoryPage() {
       case 'INCREASE': return 'text-blue-700 dark:text-blue-300 bg-blue-500/15 border-blue-500/30'
       case 'DECREASE': return 'text-amber-700 dark:text-amber-300 bg-amber-500/15 border-amber-500/30'
       case 'DELETE': return 'text-rose-700 dark:text-rose-300 bg-rose-500/15 border-rose-500/30'
+      case 'UPDATE': return 'text-purple-700 dark:text-purple-300 bg-purple-500/15 border-purple-500/30'
       default: return 'text-slate-700 dark:text-slate-300 bg-slate-500/15 border-slate-500/30'
     }
   }
@@ -146,6 +145,7 @@ export default function HistoryPage() {
       case 'INCREASE': return <Plus size={13} />
       case 'DECREASE': return <Minus size={13} />
       case 'DELETE': return <Trash2 size={13} />
+      case 'UPDATE': return <Pencil size={13} />
       default: return <Pencil size={13} />
     }
   }
@@ -156,6 +156,7 @@ export default function HistoryPage() {
       case 'INCREASE': return 'Sumado'
       case 'DECREASE': return 'Restado'
       case 'DELETE': return 'Eliminado'
+      case 'UPDATE': return 'Editado'
       default: return 'Actualizado'
     }
   }
@@ -213,7 +214,6 @@ export default function HistoryPage() {
 
             return (
               <div key={dateLabel} className="space-y-3">
-                {/* Botón interactivo para desplegar/contraer el día */}
                 <button
                   type="button"
                   onClick={() => toggleDayCollapse(dateLabel)}
@@ -229,7 +229,6 @@ export default function HistoryPage() {
                   <div className="h-px flex-1 bg-linear-to-r from-indigo-500/20 via-gray-300 dark:via-gray-700 to-transparent" />
                 </button>
 
-                {/* Lista de registros del día (se oculta cuando isCollapsed es verdadero) */}
                 {!isCollapsed && (
                   <div className="relative border-l-2 border-indigo-500/30 ml-4 pl-4 space-y-4 animate-in fade-in duration-200">
                     {groupLogs.map((log) => (
