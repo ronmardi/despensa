@@ -12,6 +12,7 @@ interface EditProductModalProps {
     id: string
     name: string
     category: string
+    location?: string // <-- Soporte para la ubicación actual
     unit: string
     min_threshold: number
     emoji?: string | null
@@ -20,9 +21,20 @@ interface EditProductModalProps {
   onSuccess: (updatedItem: any) => void
 }
 
+const LOCATIONS = [
+  'Despensa',
+  'Refrigerador',
+  'Congelador',
+  'Baño',
+  'Limpieza',
+  'Bodega',
+  'Otro'
+]
+
 export function EditProductModal({ item, onClose, onSuccess }: EditProductModalProps) {
   const [name, setName] = useState(item.name)
   const [category, setCategory] = useState(item.category || 'Despensa')
+  const [location, setLocation] = useState(item.location || 'Despensa') // <-- Estado para la ubicación
   const [unit, setUnit] = useState(item.unit || 'unidades')
   const [minThreshold, setMinThreshold] = useState(item.min_threshold || 1)
   
@@ -41,10 +53,11 @@ export function EditProductModal({ item, onClose, onSuccess }: EditProductModalP
 
     setLoading(true)
 
-    // Aquí llamamos a la acción con el emoji
+    // Aquí llamamos a la acción con el emoji y la ubicación
     const res = await editItemAction(item.id, {
       name: name.trim(),
       category,
+      location, // <-- Enviamos la ubicación a la base de datos
       unit,
       min_threshold: Number(minThreshold),
       emoji: selectedEmoji 
@@ -56,6 +69,7 @@ export function EditProductModal({ item, onClose, onSuccess }: EditProductModalP
         ...item,
         name: name.trim(),
         category,
+        location,
         unit,
         min_threshold: Number(minThreshold),
         emoji: selectedEmoji
@@ -91,7 +105,6 @@ export function EditProductModal({ item, onClose, onSuccess }: EditProductModalP
               <button
                 type="button"
                 onClick={() => setShowPicker(!showPicker)}
-                /* CORRECCIÓN DE TAILWIND: h-10.5 y w-10.5 en lugar de [42px] */
                 className="flex h-10.5 w-10.5 shrink-0 items-center justify-center rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 text-xl hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-inner"
                 title="Elegir emoji manualmente"
               >
@@ -103,7 +116,6 @@ export function EditProductModal({ item, onClose, onSuccess }: EditProductModalP
                 required
                 value={name} 
                 onChange={(e) => setName(e.target.value)}
-                /* CORRECCIÓN DE TAILWIND: h-10.5 en lugar de [42px] */
                 className="h-10.5 flex-1 rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 px-3.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-inner transition-all"
               />
 
@@ -128,25 +140,43 @@ export function EditProductModal({ item, onClose, onSuccess }: EditProductModalP
             </div>
           </div>
 
-          <div>
-            <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
-              Categoría
-            </label>
-            <select 
-              value={category} 
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 px-3.5 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-inner transition-all cursor-pointer"
-            >
-              <option value="Despensa" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Despensa</option>
-              <option value="Lácteos" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Lácteos</option>
-              <option value="Carnes" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Carnes</option>
-              <option value="Frutas y Verduras" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Frutas y Verduras</option>
-              <option value="Limpieza" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Limpieza</option>
-              <option value="Aseo Personal" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Aseo Personal</option>
-              <option value="Bebidas" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Bebidas</option>
-              <option value="Mascotas" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Mascotas</option>
-              <option value="Otros" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Otros</option>
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
+                Categoría
+              </label>
+              <select 
+                value={category} 
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 px-3.5 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-inner transition-all cursor-pointer"
+              >
+                <option value="Despensa" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Despensa</option>
+                <option value="Lácteos" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Lácteos</option>
+                <option value="Carnes" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Carnes</option>
+                <option value="Frutas y Verduras" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Frutas y Verduras</option>
+                <option value="Limpieza" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Limpieza</option>
+                <option value="Aseo Personal" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Aseo Personal</option>
+                <option value="Bebidas" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Bebidas</option>
+                <option value="Mascotas" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Mascotas</option>
+                <option value="Otros" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Otros</option>
+              </select>
+            </div>
+            
+            {/* Nuevo Select de Ubicación */}
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
+                Ubicación
+              </label>
+              <select 
+                value={location} 
+                onChange={(e) => setLocation(e.target.value)}
+                className="w-full rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 px-3.5 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-inner transition-all cursor-pointer"
+              >
+                {LOCATIONS.map((loc) => (
+                  <option key={loc} value={loc} className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">{loc}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
