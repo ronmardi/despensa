@@ -98,28 +98,19 @@ export async function createHouseholdAction(name: string = 'Mi Despensa') {
   // Generación criptográficamente segura (8 caracteres)
   const inviteCode = randomBytes(4).toString('hex').toUpperCase()
 
-  // Para hacer esto transaccional y evitar que el usuario se quede sin hogar si algo falla,
-  // verificamos si se crea el hogar ANTES de borrar su membresía actual.
-  const { data: newHousehold, error: hError } = await supabase
-    .from('households')
-    .insert([{ name, invite_code: inviteCode }])
-    .select()
-    .single()
+  // Llamada atómica a la base de datos (RPC)
+  const { data: household, error } = await supabase
+    .rpc('create_household_transaction', {
+      p_name: name.trim(),
+      p_invite_code: inviteCode,
+      p_user_id: user.id
+    })
 
-  if (hError || !newHousehold) return { success: false, error: hError?.message }
-
-  // Borramos la membresía antigua solo cuando el nuevo hogar ya existe
-  await supabase.from('household_members').delete().eq('user_id', user.id)
-
-  const { error: joinError } = await supabase
-    .from('household_members')
-    .insert([{ household_id: newHousehold.id, user_id: user.id, role: 'admin' }])
-
-  if (joinError) return { success: false, error: joinError.message }
+  if (error) return { success: false, error: error.message }
 
   revalidatePath('/pantry')
   revalidatePath('/household')
-  return { success: true }
+  return { success: true, household }
 }
 
 export async function leaveHouseholdAction() {
