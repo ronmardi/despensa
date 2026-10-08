@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'rea
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Plus, Minus, Package, AlertTriangle, Trash2, LogOut, Search, X, User, Pencil, MapPin } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { updateItemQuantityAction, deleteItemAction } from './actions'
@@ -282,7 +283,14 @@ function PantryContent() {
               title="Mi Perfil"
             >
               {avatarUrl ? (
-                <img src={avatarUrl} alt="Perfil" className="h-full w-full object-cover" />
+                <Image 
+                  src={avatarUrl} 
+                  alt="Perfil" 
+                  width={36} 
+                  height={36} 
+                  unoptimized 
+                  className="h-full w-full object-cover" 
+                />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-indigo-600 dark:text-indigo-400">
                   <User size={18} />
