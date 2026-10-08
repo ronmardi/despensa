@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'rea
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Minus, Package, AlertTriangle, Trash2, LogOut, Search, X, User, Pencil } from 'lucide-react'
+import { Plus, Minus, Package, AlertTriangle, Trash2, LogOut, Search, X, User, Pencil, MapPin } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { updateItemQuantityAction, deleteItemAction } from './actions'
 import { toast } from 'sonner'
@@ -18,6 +18,7 @@ interface PantryItem {
   id: string
   name: string
   category: string
+  location?: string // <-- Nueva propiedad agregada
   current_quantity: number
   min_threshold: number
   unit: string
@@ -157,7 +158,6 @@ function PantryContent() {
 
       if (totalDelta === 0) return
 
-      // ¡AQUÍ ESTÁ LA CORRECCIÓN! Pasamos 3 argumentos, no 4.
       const res = await updateItemQuantityAction(id, currentItem.name, totalDelta)
 
       if (!res.success) {
@@ -383,9 +383,22 @@ function PantryContent() {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 capitalize mt-0.5 truncate">
-                    {item.category}
-                  </p>
+                  
+                  {/* AQUÍ ESTÁ LA NUEVA ETIQUETA DE UBICACIÓN */}
+                  <div className="flex items-center gap-2 mt-1 overflow-hidden">
+                    <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 capitalize truncate shrink-0">
+                      {item.category}
+                    </p>
+                    
+                    {item.location && item.location !== 'Despensa' && (
+                      <>
+                        <span className="text-gray-300 dark:text-gray-600 text-[10px] shrink-0">•</span>
+                        <span className="flex items-center gap-0.5 rounded-md bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shrink-0 truncate">
+                          <MapPin size={10} /> {item.location}
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0">
