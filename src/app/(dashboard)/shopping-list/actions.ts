@@ -41,3 +41,52 @@ export async function completePurchasesAction(purchases: { id: string, name: str
   revalidatePath('/history')
   return { success: true }
 }
+
+// ==========================================
+// ACCIONES PARA ÍTEMS MANUALES (EXTRAS)
+// ==========================================
+
+export async function addExtraItemAction(name: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'No autorizado' }
+
+  const { data: member } = await supabase
+    .from('household_members')
+    .select('household_id')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member) return { success: false, error: 'Sin hogar' }
+
+  const { error } = await supabase.from('shopping_extras').insert([{
+    household_id: member.household_id,
+    name: name.trim(),
+    added_by: user.id
+  }])
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/shopping-list')
+  return { success: true }
+}
+
+export async function toggleExtraItemAction(id: string, isChecked: boolean) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('shopping_extras')
+    .update({ is_checked: isChecked })
+    .eq('id', id)
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/shopping-list')
+  return { success: true }
+}
+
+export async function deleteExtraItemAction(id: string) {
+  const supabase = await createClient()
+  const { error } = await supabase.from('shopping_extras').delete().eq('id', id)
+  
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/shopping-list')
+  return { success: true }
+}
