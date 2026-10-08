@@ -14,7 +14,7 @@ export async function getHouseholdData() {
     .from('household_members')
     .select('household_id, role')
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
 
   if (!member) return null
 
@@ -28,15 +28,43 @@ export async function getHouseholdData() {
 
   const { data: members } = await supabase
     .from('household_members')
-    .select('*, profiles(full_name, avatar_url)')
+    .select('user_id, role')
     .eq('household_id', member.household_id)
 
+  if (!members || members.length === 0) return null
+
+  const userIds = members.map((m) => m.user_id)
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url, email')
+    .in('id', userIds)
+
+  const formattedMembers = (profiles || []).map((profile) => {
+    const mInfo = members.find((m) => m.user_id === profile.id)
+    return {
+      id: profile.id,
+      full_name: profile.full_name || null,
+      avatar_url: profile.avatar_url || null,
+      email: profile.email || null,
+      role: mInfo?.role || 'member',
+    }
+  }).sort((a, b) => {
+    if (a.role === 'admin' || a.role === 'owner') return -1
+    if (b.role === 'admin' || b.role === 'owner') return 1
+    return 0
+  })
+
   return {
-    household,
-    members: members || [],
-    userRole: member.role,
+    household: {
+      id: household.id,
+      name: household.name,
+      invite_code: household.invite_code || household.code || '',
+    },
+    members: formattedMembers,
+    userRole: member.role || 'member',
     currentUserId: user.id,
-    userEmail: user.email,
+    userEmail: user.email || '',
   }
 }
 
@@ -45,7 +73,7 @@ export async function joinHouseholdAction(inviteCode: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Sesión no válida.' }
 
-  // 1. Rate Limiting: Máximo 5 intentos en los últimos 15 minutos
+  // Rate Limiting: Máximo 5 intentos en los últimos 15 minutos
   const fifteenMinsAgo = new Date(Date.now() - 15 * 60000).toISOString()
   const { count } = await supabase
     .from('join_attempts')
@@ -58,20 +86,19 @@ export async function joinHouseholdAction(inviteCode: string) {
   }
 
   const cleanCode = inviteCode.trim().toUpperCase()
+  if (!cleanCode) return { success: false, error: 'Código no válido.' }
 
   const { data: household, error: householdError } = await supabase
     .from('households')
     .select('id')
     .eq('invite_code', cleanCode)
-    .single()
+    .maybeSingle()
 
   if (householdError || !household) {
-    // Registrar intento fallido
     await supabase.from('join_attempts').insert([{ user_id: user.id }])
-    return { success: false, error: 'Código inválido.' }
+    return { success: false, error: 'Código de hogar inválido.' }
   }
 
-  // 2. Operación Atómica (Upsert): Actualiza si existe, inserta si no.
   const { error: joinError } = await supabase
     .from('household_members')
     .upsert({ 
@@ -82,7 +109,6 @@ export async function joinHouseholdAction(inviteCode: string) {
 
   if (joinError) return { success: false, error: joinError.message }
 
-  // Limpiar intentos tras un éxito
   await supabase.from('join_attempts').delete().eq('user_id', user.id)
 
   revalidatePath('/pantry')
@@ -95,15 +121,12 @@ export async function createHouseholdAction(name: string = 'Mi Despensa') {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Sesión no válida.' }
 
-  // Generación criptográficamente segura (8 caracteres hex)
   const inviteCode = randomBytes(4).toString('hex').toUpperCase()
 
-  // Llamada atómica a la base de datos (RPC) SEGURA
   const { data: household, error } = await supabase
     .rpc('create_household_transaction', {
       p_name: name.trim(),
       p_invite_code: inviteCode
-      // Se elimina p_user_id; la RPC lo determina con auth.uid() en Postgres
     })
 
   if (error) return { success: false, error: error.message }
@@ -113,12 +136,127 @@ export async function createHouseholdAction(name: string = 'Mi Despensa') {
   return { success: true, household }
 }
 
+export async function updateHouseholdNameAction(newName: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'No autorizado.' }
+
+  const { data: member } = await supabase
+    .from('household_members')
+    .select('household_id, role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member || (member.role !== 'admin' && member.role !== 'owner')) {
+    return { success: false, error: 'No tienes permisos de administrador.' }
+  }
+
+  const trimmed = newName.trim()
+  if (!trimmed) return { success: false, error: 'El nombre no puede estar vacío.' }
+
+  const { error } = await supabase
+    .from('households')
+    .update({ name: trimmed })
+    .eq('id', member.household_id)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/pantry')
+  revalidatePath('/household')
+  return { success: true }
+}
+
+export async function regenerateInviteCodeAction() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'No autorizado.' }
+
+  const { data: member } = await supabase
+    .from('household_members')
+    .select('household_id, role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member || (member.role !== 'admin' && member.role !== 'owner')) {
+    return { success: false, error: 'No tienes permisos de administrador.' }
+  }
+
+  const newCode = randomBytes(4).toString('hex').toUpperCase()
+
+  const { error } = await supabase
+    .from('households')
+    .update({ invite_code: newCode })
+    .eq('id', member.household_id)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/household')
+  return { success: true, newCode }
+}
+
+export async function kickMemberAction(targetUserId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'No autorizado.' }
+
+  if (user.id === targetUserId) {
+    return { success: false, error: 'No puedes expulsarte a ti mismo.' }
+  }
+
+  const { data: member } = await supabase
+    .from('household_members')
+    .select('household_id, role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member || (member.role !== 'admin' && member.role !== 'owner')) {
+    return { success: false, error: 'No tienes permisos de administrador.' }
+  }
+
+  const { error } = await supabase
+    .from('household_members')
+    .delete()
+    .eq('user_id', targetUserId)
+    .eq('household_id', member.household_id)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/household')
+  return { success: true }
+}
+
+export async function changeRoleAction(targetUserId: string, newRole: 'admin' | 'member') {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'No autorizado.' }
+
+  const { data: member } = await supabase
+    .from('household_members')
+    .select('household_id, role')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member || (member.role !== 'admin' && member.role !== 'owner')) {
+    return { success: false, error: 'No tienes permisos de administrador.' }
+  }
+
+  const { error } = await supabase
+    .from('household_members')
+    .update({ role: newRole })
+    .eq('user_id', targetUserId)
+    .eq('household_id', member.household_id)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/household')
+  return { success: true }
+}
+
 export async function leaveHouseholdAction() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'No autorizado' }
 
-  // 1. Obtener los datos actuales del usuario en el hogar
   const { data: currentMember, error: memberError } = await supabase
     .from('household_members')
     .select('household_id, role')
@@ -131,8 +269,7 @@ export async function leaveHouseholdAction() {
 
   const householdId = currentMember.household_id
 
-  // 2. Verificaciones de seguridad para el administrador
-  if (currentMember.role === 'admin') {
+  if (currentMember.role === 'admin' || currentMember.role === 'owner') {
     const { data: allMembers } = await supabase
       .from('household_members')
       .select('id, role')
@@ -140,9 +277,8 @@ export async function leaveHouseholdAction() {
 
     if (allMembers) {
       const totalMembers = allMembers.length
-      const adminCount = allMembers.filter(m => m.role === 'admin').length
+      const adminCount = allMembers.filter(m => m.role === 'admin' || m.role === 'owner').length
 
-      // CASO A: Es el único admin, pero hay más personas en el hogar.
       if (adminCount === 1 && totalMembers > 1) {
         return { 
           success: false, 
@@ -150,7 +286,6 @@ export async function leaveHouseholdAction() {
         }
       }
 
-      // CASO B: Es la última persona en la despensa.
       if (totalMembers === 1) {
         const { error: deleteError } = await supabase.from('households').delete().eq('id', householdId)
         if (deleteError) return { success: false, error: deleteError.message }
@@ -162,7 +297,6 @@ export async function leaveHouseholdAction() {
     }
   }
 
-  // 3. Si no es admin, o hay más admins, simplemente borramos su membresía
   const { error: leaveError } = await supabase
     .from('household_members')
     .delete()

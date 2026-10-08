@@ -1,10 +1,19 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { ArrowLeft, Users, Copy, Check, QrCode, UserPlus, Loader2, Share2, Pencil, X, User, Shield, UserMinus, RefreshCw, LogOut, PlusCircle } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  getHouseholdData,
+  joinHouseholdAction,
+  createHouseholdAction,
+  updateHouseholdNameAction,
+  regenerateInviteCodeAction,
+  kickMemberAction,
+  changeRoleAction,
+  leaveHouseholdAction
+} from './actions'
 
 interface Household {
   id: string
@@ -30,7 +39,6 @@ interface DialogState {
 }
 
 export default function HouseholdPage() {
-  const supabase = createClient()
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [currentUserRole, setCurrentUserRole] = useState<string>('member')
@@ -44,7 +52,6 @@ export default function HouseholdPage() {
   const [joining, setJoining] = useState(false)
   const [regenerating, setRegenerating] = useState(false)
 
-  // Estado para la vista sin hogar (Unirse vs Crear)
   const [noHouseholdTab, setNoHouseholdTab] = useState<'join' | 'create'>('join')
   const [newHogName, setNewHogName] = useState('')
   const [creatingHog, setCreatingHog] = useState(false)
@@ -53,7 +60,6 @@ export default function HouseholdPage() {
   const [newHouseholdName, setNewHouseholdName] = useState('')
   const [updatingName, setUpdatingName] = useState(false)
 
-  // Estado para el Modal de Confirmación Personalizado
   const [dialog, setDialog] = useState<DialogState>({
     isOpen: false,
     title: '',
@@ -65,76 +71,20 @@ export default function HouseholdPage() {
 
   const loadHouseholdData = useCallback(async () => {
     setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setLoading(false)
-      return
-    }
-    setCurrentUserId(user.id)
+    const data = await getHouseholdData()
 
-    const { data: memberData } = await supabase
-      .from('household_members')
-      .select('household_id, role')
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    if (memberData) {
-      const hId = memberData.household_id
-      setCurrentUserRole(memberData.role || 'member')
-
-      const { data: hh } = await supabase
-        .from('households')
-        .select('*')
-        .eq('id', hId)
-        .single()
-
-      if (hh) {
-        setHousehold({
-          id: hh.id,
-          name: hh.name,
-          invite_code: hh.invite_code || hh.code || '',
-        })
-        setNewHouseholdName(hh.name)
-      }
-
-      const { data: allMembers } = await supabase
-        .from('household_members')
-        .select('user_id, role')
-        .eq('household_id', hId)
-
-      if (allMembers && allMembers.length > 0) {
-        const userIds = allMembers.map((m) => m.user_id)
-
-        const { data: profilesData } = await supabase
-          .from('profiles')
-          .select('id, full_name, avatar_url, email')
-          .in('id', userIds)
-
-        if (profilesData) {
-          const merged = profilesData.map((profile) => {
-            const mInfo = allMembers.find((m) => m.user_id === profile.id)
-            return {
-              ...profile,
-              role: mInfo?.role || 'member',
-            }
-          })
-
-          merged.sort((a, b) => {
-            if (a.role === 'admin' || a.role === 'owner') return -1
-            if (b.role === 'admin' || b.role === 'owner') return 1
-            return 0
-          })
-
-          setMembers(merged)
-        }
-      }
+    if (data) {
+      setCurrentUserId(data.currentUserId)
+      setCurrentUserRole(data.userRole)
+      setHousehold(data.household)
+      setMembers(data.members)
+      setNewHouseholdName(data.household.name)
     } else {
-      // Si el usuario no está en ningún hogar, limpiamos los datos
       setHousehold(null)
       setMembers([])
     }
     setLoading(false)
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
     loadHouseholdData()
@@ -145,16 +95,6 @@ export default function HouseholdPage() {
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/join?code=${household.invite_code}` 
     : ''
 
-  const generateRandomCode = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-    let result = ''
-    for (let i = 0; i < 6; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length))
-    }
-    return result
-  }
-
-  // Confirmación para Renovar Código
   const confirmRegenerateCode = () => {
     if (!household || !isAdmin) return
     setDialog({
@@ -165,17 +105,12 @@ export default function HouseholdPage() {
       isDestructive: true,
       actionFn: async () => {
         setRegenerating(true)
-        const newCode = generateRandomCode()
+        const res = await regenerateInviteCodeAction()
 
-        const { error } = await supabase
-          .from('households')
-          .update({ invite_code: newCode }) 
-          .eq('id', household.id)
-
-        if (error) {
-          toast.error('Error al generar nuevo código', { description: 'Revisa las políticas RLS en Supabase' })
+        if (!res.success) {
+          toast.error('Error al generar nuevo código', { description: res.error })
         } else {
-          setHousehold({ ...household, invite_code: newCode })
+          setHousehold(prev => prev ? { ...prev, invite_code: res.newCode! } : null)
           toast.success('Código de invitación renovado')
         }
         setRegenerating(false)
@@ -184,7 +119,6 @@ export default function HouseholdPage() {
     })
   }
 
-  // Confirmación para Expulsar a otro miembro
   const confirmKickMember = (userId: string, userName: string) => {
     if (!household || !isAdmin || userId === currentUserId) return
     setDialog({
@@ -194,14 +128,11 @@ export default function HouseholdPage() {
       actionLabel: 'Expulsar',
       isDestructive: true,
       actionFn: async () => {
-        const { error } = await supabase
-          .from('household_members')
-          .delete()
-          .eq('user_id', userId)
-          .eq('household_id', household.id)
+        const res = await kickMemberAction(userId)
 
-        if (error) toast.error('Error al expulsar usuario')
-        else {
+        if (!res.success) {
+          toast.error('Error al expulsar usuario', { description: res.error })
+        } else {
           toast.success(`${userName} ha sido expulsado`)
           loadHouseholdData()
         }
@@ -210,7 +141,6 @@ export default function HouseholdPage() {
     })
   }
 
-  // Confirmación para ABANDONAR O ELIMINAR EL HOGAR (Tú mismo)
   const confirmLeaveHousehold = () => {
     if (!household || !currentUserId) return
 
@@ -225,35 +155,15 @@ export default function HouseholdPage() {
       actionLabel: isLastMember ? 'Sí, eliminar hogar' : 'Sí, salir',
       isDestructive: true,
       actionFn: async () => {
-        // 1. Borrar la membresía del usuario actual
-        const { error: memberErr } = await supabase
-          .from('household_members')
-          .delete()
-          .eq('user_id', currentUserId)
-          .eq('household_id', household.id)
+        const res = await leaveHouseholdAction()
 
-        if (memberErr) {
-          toast.error('Error al salir del hogar', { description: memberErr.message })
+        if (!res.success) {
+          toast.error('Error al salir del hogar', { description: res.error })
           setDialog(prev => ({ ...prev, isOpen: false }))
           return
         }
 
-        // 2. Si era el único integrante, eliminar la fila correspondiente en 'households'
-        if (isLastMember) {
-          const { error: hhErr } = await supabase
-            .from('households')
-            .delete()
-            .eq('id', household.id)
-
-          if (hhErr) {
-            console.error('Error al eliminar registro de hogar:', hhErr.message)
-          }
-          toast.success('El hogar ha sido eliminado')
-        } else {
-          toast.success('Has abandonado el hogar')
-        }
-
-        // 3. Limpiar estado local y recargar vista a "Sin hogar asignado"
+        toast.success(isLastMember ? 'El hogar ha sido eliminado' : 'Has abandonado el hogar')
         setHousehold(null)
         setMembers([])
         setDialog(prev => ({ ...prev, isOpen: false }))
@@ -262,10 +172,9 @@ export default function HouseholdPage() {
     })
   }
 
-  // Confirmación para Cambiar Rol
   const confirmChangeRole = (userId: string, userName: string, currentRole: string) => {
     if (!household || !isAdmin) return
-    const newRole = currentRole === 'admin' ? 'member' : 'admin'
+    const newRole = (currentRole === 'admin' || currentRole === 'owner') ? 'member' : 'admin'
     const roleText = newRole === 'admin' ? 'Administrador' : 'Miembro'
     
     setDialog({
@@ -275,14 +184,11 @@ export default function HouseholdPage() {
       actionLabel: 'Sí, cambiar',
       isDestructive: false,
       actionFn: async () => {
-        const { error } = await supabase
-          .from('household_members')
-          .update({ role: newRole })
-          .eq('user_id', userId)
-          .eq('household_id', household.id)
+        const res = await changeRoleAction(userId, newRole)
 
-        if (error) toast.error('Error al cambiar rol')
-        else {
+        if (!res.success) {
+          toast.error('Error al cambiar rol', { description: res.error })
+        } else {
           toast.success(`Rol de ${userName} actualizado`)
           loadHouseholdData()
         }
@@ -296,18 +202,12 @@ export default function HouseholdPage() {
     if (!household || !newHouseholdName.trim()) return
 
     setUpdatingName(true)
-    const trimmed = newHouseholdName.trim()
+    const res = await updateHouseholdNameAction(newHouseholdName)
 
-    const { data, error } = await supabase
-      .from('households')
-      .update({ name: trimmed })
-      .eq('id', household.id)
-      .select()
-
-    if (error || !data || data.length === 0) {
-      toast.error('Error al cambiar el nombre')
+    if (!res.success) {
+      toast.error('Error al cambiar el nombre', { description: res.error })
     } else {
-      setHousehold({ ...household, name: trimmed })
+      setHousehold({ ...household, name: newHouseholdName.trim() })
       setIsEditingName(false)
       toast.success('Nombre del hogar actualizado')
     }
@@ -348,82 +248,30 @@ export default function HouseholdPage() {
 
   const handleJoinHousehold = async (e: React.FormEvent) => {
     e.preventDefault()
-    const cleanCode = joinCode.trim().toUpperCase()
-    if (!cleanCode) return
+    if (!joinCode.trim()) return
 
     setJoining(true)
-    const { data: hh } = await supabase
-      .from('households')
-      .select('id')
-      .or(`invite_code.eq.${cleanCode},code.eq.${cleanCode}`)
-      .maybeSingle()
+    const res = await joinHouseholdAction(joinCode)
 
-    if (!hh) {
-      toast.error('Código de hogar inválido')
-      setJoining(false)
-      return
-    }
-
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase.from('household_members').delete().eq('user_id', user.id)
-      const { error } = await supabase
-        .from('household_members')
-        .insert({ household_id: hh.id, user_id: user.id, role: 'member' })
-
-      if (error) {
-        toast.error('Error al unirse al hogar', { description: error.message })
-      } else {
-        toast.success('¡Te has unido al hogar con éxito!')
-        setJoinCode('')
-        loadHouseholdData()
-      }
+    if (!res.success) {
+      toast.error('Error al unirse al hogar', { description: res.error })
+    } else {
+      toast.success('¡Te has unido al hogar con éxito!')
+      setJoinCode('')
+      loadHouseholdData()
     }
     setJoining(false)
   }
 
-  // Función para CREAR un nuevo hogar
   const handleCreateHousehold = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newHogName.trim()) return
 
     setCreatingHog(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setCreatingHog(false)
-      return
-    }
+    const res = await createHouseholdAction(newHogName)
 
-    const code = generateRandomCode()
-
-    const { data: newHh, error: hhErr } = await supabase
-      .from('households')
-      .insert({
-        name: newHogName.trim(),
-        invite_code: code,
-        created_by: user.id,
-        owner_id: user.id
-      })
-      .select()
-      .single()
-
-    if (hhErr || !newHh) {
-      toast.error('Error al crear el hogar', { description: hhErr?.message })
-      setCreatingHog(false)
-      return
-    }
-
-    await supabase.from('household_members').delete().eq('user_id', user.id)
-    const { error: memErr } = await supabase
-      .from('household_members')
-      .insert({
-        household_id: newHh.id,
-        user_id: user.id,
-        role: 'owner'
-      })
-
-    if (memErr) {
-      toast.error('Error al asignar propietario')
+    if (!res.success) {
+      toast.error('Error al crear el hogar', { description: res.error })
     } else {
       toast.success('¡Hogar creado con éxito!')
       setNewHogName('')
@@ -457,7 +305,6 @@ export default function HouseholdPage() {
         </div>
       ) : household ? (
         <div className="space-y-5">
-          {/* Tarjeta del Hogar */}
           <div className={`rounded-3xl p-6 text-center ${glass3dClass}`}>
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
               <Users size={28} />
@@ -510,7 +357,6 @@ export default function HouseholdPage() {
             </p>
           </div>
 
-          {/* Lista de Integrantes */}
           <div className={`rounded-3xl p-5 space-y-3 ${glass3dClass}`}>
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
               Integrantes del hogar
@@ -602,7 +448,6 @@ export default function HouseholdPage() {
             </div>
           </div>
 
-          {/* Opciones de Invitación */}
           <div className={`rounded-3xl p-5 space-y-4 ${glass3dClass}`}>
             <div className="flex items-center justify-between">
               <div>
@@ -628,7 +473,6 @@ export default function HouseholdPage() {
               </div>
             )}
 
-            {/* Código de Invitación Texto */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -659,7 +503,6 @@ export default function HouseholdPage() {
               </div>
             </div>
 
-            {/* Enlace Directo */}
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Enlace directo de invitación
@@ -669,7 +512,6 @@ export default function HouseholdPage() {
               </div>
             </div>
 
-            {/* Botones de Compartir y Copiar Enlace */}
             <div className="flex gap-2 pt-1">
               <button
                 onClick={handleShareLink}
@@ -689,15 +531,14 @@ export default function HouseholdPage() {
             </div>
           </div>
 
-          {/* Unirse a otro hogar */}
           <div className={`rounded-3xl p-5 ${glass3dClass}`}>
             <h3 className="font-bold text-gray-900 dark:text-white text-sm mb-1">¿Tienes un código manual?</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Ingresa un código de 6 caracteres para unirte a otro hogar</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Ingresa un código de 8 caracteres para unirte a otro hogar</p>
             
             <form onSubmit={handleJoinHousehold} className="flex gap-2">
               <input
                 type="text"
-                placeholder="Ej. X8K9P2"
+                placeholder="Ej. X8K9P2W4"
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value)}
                 className="flex-1 rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 px-3.5 py-2 text-xs font-mono text-gray-900 dark:text-white uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
@@ -713,7 +554,6 @@ export default function HouseholdPage() {
           </div>
         </div>
       ) : (
-        /* VISTA SIN HOGAR: UNIRSE O CREAR */
         <div className={`rounded-3xl p-6 text-center ${glass3dClass}`}>
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
             <UserPlus size={28} />
@@ -724,7 +564,6 @@ export default function HouseholdPage() {
             Únete a un hogar existente o crea uno nuevo para comenzar.
           </p>
 
-          {/* Selector Unirse vs Crear */}
           <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-200/50 dark:bg-slate-950/50 p-1 mb-5 border border-black/5 dark:border-white/5">
             <button
               type="button"
@@ -754,7 +593,7 @@ export default function HouseholdPage() {
             <form onSubmit={handleJoinHousehold} className="space-y-3">
               <input
                 type="text"
-                placeholder="Código de invitación (Ej: X8K9P2)"
+                placeholder="Código de invitación (Ej: X8K9P2W4)"
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value)}
                 className="w-full rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 px-4 py-3 text-sm font-mono text-gray-900 dark:text-white uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
@@ -788,7 +627,6 @@ export default function HouseholdPage() {
         </div>
       )}
 
-      {/* Modal de Confirmación Global */}
       {dialog.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
           <div className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-white/20 dark:border-white/10 ${glass3dClass}`}>
