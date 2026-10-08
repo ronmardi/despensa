@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { randomBytes } from 'crypto' //
+import { randomBytes } from 'crypto'
 
 export async function getHouseholdData() {
   const supabase = await createClient()
@@ -71,7 +71,7 @@ export async function joinHouseholdAction(inviteCode: string) {
     return { success: false, error: 'Código inválido.' }
   }
 
-  // 2. Operación Atómica (Upsert): Actualiza si existe, inserta si no. No hay riesgo de quedar sin hogar.
+  // 2. Operación Atómica (Upsert): Actualiza si existe, inserta si no.
   const { error: joinError } = await supabase
     .from('household_members')
     .upsert({ 
@@ -95,15 +95,15 @@ export async function createHouseholdAction(name: string = 'Mi Despensa') {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Sesión no válida.' }
 
-  // Generación criptográficamente segura (8 caracteres)
+  // Generación criptográficamente segura (8 caracteres hex)
   const inviteCode = randomBytes(4).toString('hex').toUpperCase()
 
-  // Llamada atómica a la base de datos (RPC)
+  // Llamada atómica a la base de datos (RPC) SEGURA
   const { data: household, error } = await supabase
     .rpc('create_household_transaction', {
       p_name: name.trim(),
-      p_invite_code: inviteCode,
-      p_user_id: user.id
+      p_invite_code: inviteCode
+      // Se elimina p_user_id; la RPC lo determina con auth.uid() en Postgres
     })
 
   if (error) return { success: false, error: error.message }
@@ -131,7 +131,7 @@ export async function leaveHouseholdAction() {
 
   const householdId = currentMember.household_id
 
-  // 2. Si el usuario es administrador, hacemos verificaciones de seguridad
+  // 2. Verificaciones de seguridad para el administrador
   if (currentMember.role === 'admin') {
     const { data: allMembers } = await supabase
       .from('household_members')
@@ -152,8 +152,6 @@ export async function leaveHouseholdAction() {
 
       // CASO B: Es la última persona en la despensa.
       if (totalMembers === 1) {
-        // En lugar de solo salir, borramos la despensa completa para no dejar "basura" en la base de datos.
-        // (Asumiendo que tienes configurado el borrado en cascada en tu base de datos)
         const { error: deleteError } = await supabase.from('households').delete().eq('id', householdId)
         if (deleteError) return { success: false, error: deleteError.message }
         
