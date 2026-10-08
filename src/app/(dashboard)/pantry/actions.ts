@@ -16,12 +16,12 @@ export async function updateItemQuantityAction(itemId: string, itemName: string,
 
   if (!member) return { success: false, error: 'Sin hogar asignado' }
 
-  // 1. Llamada atómica a la base de datos (RPC)
+  // 1. Llamada atómica a la base de datos (RPC) SEGURA
   const { data: newQuantity, error: updateError } = await supabase
     .rpc('increment_item_quantity', {
       p_item_id: itemId,
-      p_household_id: member.household_id,
       p_delta: difference
+      // Se elimina p_household_id; la RPC lo determina con auth.uid() en Postgres
     })
 
   if (updateError) return { success: false, error: updateError.message }
@@ -85,7 +85,7 @@ export async function editItemAction(
   data: { 
     name: string; 
     category: string; 
-    location?: string; // <-- Soporte para location agregado aquí
+    location?: string; 
     unit: string; 
     min_threshold: number; 
     emoji?: string | null 
@@ -108,7 +108,7 @@ export async function editItemAction(
     .update({
       name: data.name,
       category: data.category,
-      location: data.location, // <-- Guardado en base de datos agregado aquí
+      location: data.location,
       unit: data.unit,
       min_threshold: data.min_threshold,
       emoji: data.emoji
