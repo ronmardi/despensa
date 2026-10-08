@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { joinHouseholdAction } from '@/app/(dashboard)/household/actions'
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -15,7 +16,6 @@ function JoinContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const [householdName, setHouseholdName] = useState('')
 
   useEffect(() => {
     async function processJoin() {
@@ -27,6 +27,7 @@ function JoinContent() {
         return
       }
 
+      // 1. Verificar si hay usuario autenticado en la sesión
       const { data: { user } } = await supabase.auth.getUser()
       
       if (!user) {
@@ -35,46 +36,14 @@ function JoinContent() {
         return
       }
 
-      const { data: household } = await supabase
-        .from('households')
-        .select('id, name')
-        .eq('invite_code', inviteCode.toUpperCase())
-        .single()
+      // 2. Ejecutar la acción segura en el servidor
+      const res = await joinHouseholdAction(inviteCode)
 
-      if (!household) {
-        setError('El código de invitación es inválido o ha expirado.')
-        setLoading(false)
-        return
-      }
-
-      setHouseholdName(household.name)
-
-      const { data: existingMember } = await supabase
-        .from('household_members')
-        .select('id')
-        .eq('household_id', household.id)
-        .eq('user_id', user.id)
-        .single()
-
-      if (existingMember) {
-        toast.info('Ya eres miembro de este hogar.')
-        router.push('/pantry')
-        return
-      }
-
-      const { error: joinError } = await supabase
-        .from('household_members')
-        .insert({
-          household_id: household.id,
-          user_id: user.id,
-          role: 'member'
-        })
-
-      if (joinError) {
-        setError('Ocurrió un error al intentar unirte al hogar.')
+      if (!res.success) {
+        setError(res.error || 'Ocurrió un error al intentar unirte al hogar.')
       } else {
         setSuccess(true)
-        toast.success(`¡Te has unido a ${household.name}!`)
+        toast.success('¡Te has unido al hogar con éxito!')
         setTimeout(() => {
           router.push('/pantry')
         }, 2000)
@@ -113,10 +82,7 @@ function JoinContent() {
           <CheckCircle className="h-16 w-16 text-green-500 mb-4" />
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">¡Bienvenido!</h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-            Te has unido exitosamente al hogar:
-          </p>
-          <p className="font-bold text-indigo-600 dark:text-indigo-400 text-lg mb-6">
-            {householdName}
+            Te has unido exitosamente al hogar.
           </p>
           <p className="text-xs text-gray-500 animate-pulse">
             Redirigiendo a la despensa...
