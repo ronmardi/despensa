@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { ArrowLeft, Users, Copy, Check, QrCode, UserPlus, Loader2, Share2, Pencil, X, User, Shield, UserMinus, RefreshCw, LogOut, PlusCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -87,7 +88,19 @@ export default function HouseholdPage() {
   }, [])
 
   useEffect(() => {
-    loadHouseholdData()
+    let isMounted = true
+
+    const initHousehold = async () => {
+      if (isMounted) {
+        await loadHouseholdData()
+      }
+    }
+
+    initHousehold()
+
+    return () => {
+      isMounted = false
+    }
   }, [loadHouseholdData])
 
   const isAdmin = currentUserRole === 'admin' || currentUserRole === 'owner'
@@ -377,7 +390,14 @@ export default function HouseholdPage() {
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl overflow-hidden bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
                         {member.avatar_url ? (
-                          <img src={member.avatar_url} alt={displayName} className="h-full w-full object-cover" />
+                          <Image 
+                            src={member.avatar_url} 
+                            alt={displayName} 
+                            width={40} 
+                            height={40} 
+                            unoptimized 
+                            className="h-full w-full object-cover" 
+                          />
                         ) : (
                           <User size={20} />
                         )}
@@ -464,9 +484,12 @@ export default function HouseholdPage() {
 
             {showQr && (
               <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white dark:bg-slate-950 border border-black/5 dark:border-white/10">
-                <img
+                <Image
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(inviteUrl)}`}
                   alt="Código QR del Hogar"
+                  width={176}
+                  height={176}
+                  unoptimized
                   className="w-44 h-44 rounded-lg shadow-xs"
                 />
                 <p className="mt-3 text-[11px] font-medium text-gray-500 dark:text-gray-400">Escanea para unirte directamente</p>
