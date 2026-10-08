@@ -24,7 +24,10 @@ export default function HistoryPage() {
 
   const loadLogs = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
 
     const { data: members } = await supabase
       .from('household_members')
@@ -44,7 +47,7 @@ export default function HistoryPage() {
       if (activityLogs) {
         const uniqueEmails = Array.from(new Set(activityLogs.map(log => log.user_email).filter(Boolean)))
         
-        let emailToNameMap: Record<string, string> = {}
+        const emailToNameMap: Record<string, string> = {}
         
         if (uniqueEmails.length > 0) {
           const { data: profiles } = await supabase
@@ -73,7 +76,15 @@ export default function HistoryPage() {
   }, [supabase])
 
   useEffect(() => {
-    loadLogs()
+    let isMounted = true
+
+    const initLogs = async () => {
+      if (isMounted) {
+        await loadLogs()
+      }
+    }
+
+    initLogs()
 
     const channel = supabase
       .channel('realtime_activity_logs')
@@ -81,12 +92,15 @@ export default function HistoryPage() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'activity_logs' },
         () => {
-          loadLogs()
+          if (isMounted) {
+            loadLogs()
+          }
         }
       )
       .subscribe()
 
     return () => {
+      isMounted = false
       supabase.removeChannel(channel)
     }
   }, [supabase, loadLogs])
