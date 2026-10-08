@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { ArrowLeft, User, Camera, Save, Loader2, Trash2, Fingerprint } from 'lucide-react'
 import { toast } from 'sonner'
 import { FooterCredit } from '@/components/FooterCredit'
@@ -24,26 +25,41 @@ export default function ProfilePage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
   useEffect(() => {
+    let isMounted = true
+
     async function loadProfile() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        if (isMounted) setLoading(false)
+        return
+      }
 
-      setUserId(user.id)
-      setEmail(user.email || '')
+      if (isMounted) {
+        setUserId(user.id)
+        setEmail(user.email || '')
+      }
 
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
 
-      if (profile) {
+      if (profile && isMounted) {
         setFullName(profile.full_name || '')
         setAvatarUrl(profile.avatar_url || '')
       }
-      setLoading(false)
+      
+      if (isMounted) {
+        setLoading(false)
+      }
     }
+
     loadProfile()
+
+    return () => {
+      isMounted = false
+    }
   }, [supabase])
 
   const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,7 +101,8 @@ export default function ProfilePage() {
       setAvatarUrl(data.publicUrl)
       toast.success('Foto subida con éxito')
       
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as Error
       toast.error('Error subiendo imagen', { description: error.message })
     } finally {
       setUploading(false)
@@ -106,14 +123,14 @@ export default function ProfilePage() {
       if (error) throw error
       toast.success('¡Perfil actualizado con éxito!')
       router.refresh()
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as Error
       toast.error('Error guardando perfil', { description: error.message })
     } finally {
       setSaving(false)
     }
   }
 
-  // Nueva función para Registrar Passkey
   const handleRegisterPasskey = async () => {
     try {
       setRegisteringPasskey(true)
@@ -121,7 +138,8 @@ export default function ProfilePage() {
       
       if (error) throw error
       toast.success('¡Autenticación biométrica activada con éxito!')
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as Error
       toast.error('No se pudo registrar la huella/FaceID', { description: error.message })
     } finally {
       setRegisteringPasskey(false)
@@ -162,9 +180,12 @@ export default function ProfilePage() {
             {uploading ? (
               <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
             ) : avatarUrl ? (
-              <img 
+              <Image 
                 src={avatarUrl} 
                 alt="Avatar" 
+                width={112}
+                height={112}
+                unoptimized
                 className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" 
               />
             ) : (
@@ -223,7 +244,7 @@ export default function ProfilePage() {
           {saving ? 'Guardando...' : 'Guardar Perfil'}
         </button>
 
-        {/* --- NUEVA SECCIÓN: PASSKEYS --- */}
+        {/* Passkeys */}
         <div className="pt-6 border-t border-black/5 dark:border-white/5 space-y-3">
           <div>
             <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
