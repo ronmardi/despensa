@@ -82,7 +82,14 @@ export async function deleteItemAction(itemId: string, itemName: string) {
 
 export async function editItemAction(
   itemId: string,
-  data: { name: string; category: string; unit: string; min_threshold: number; emoji?: string | null }
+  data: { 
+    name: string; 
+    category: string; 
+    location?: string; // <-- Soporte para location agregado aquí
+    unit: string; 
+    min_threshold: number; 
+    emoji?: string | null 
+  }
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -101,6 +108,7 @@ export async function editItemAction(
     .update({
       name: data.name,
       category: data.category,
+      location: data.location, // <-- Guardado en base de datos agregado aquí
       unit: data.unit,
       min_threshold: data.min_threshold,
       emoji: data.emoji
