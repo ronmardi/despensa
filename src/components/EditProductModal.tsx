@@ -6,13 +6,14 @@ import { toast } from 'sonner'
 import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react'
 import { getProductEmoji } from '@/lib/utils/emoji'
 import { editItemAction } from '@/app/(dashboard)/pantry/actions'
+import { CATEGORIES, LOCATIONS, UNITS } from '@/lib/constants'
 
 interface EditProductModalProps {
   item: {
     id: string
     name: string
     category: string
-    location?: string // <-- Soporte para la ubicación actual
+    location?: string
     unit: string
     min_threshold: number
     emoji?: string | null
@@ -21,21 +22,11 @@ interface EditProductModalProps {
   onSuccess: (updatedItem: any) => void
 }
 
-const LOCATIONS = [
-  'Despensa',
-  'Refrigerador',
-  'Congelador',
-  'Baño',
-  'Limpieza',
-  'Bodega',
-  'Otro'
-]
-
 export function EditProductModal({ item, onClose, onSuccess }: EditProductModalProps) {
   const [name, setName] = useState(item.name)
-  const [category, setCategory] = useState(item.category || 'Despensa')
-  const [location, setLocation] = useState(item.location || 'Despensa') // <-- Estado para la ubicación
-  const [unit, setUnit] = useState(item.unit || 'unidades')
+  const [category, setCategory] = useState(item.category || CATEGORIES[0])
+  const [location, setLocation] = useState(item.location || LOCATIONS[0])
+  const [unit, setUnit] = useState(item.unit || UNITS[0].value)
   const [minThreshold, setMinThreshold] = useState(item.min_threshold || 1)
   
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(item.emoji || null)
@@ -53,11 +44,10 @@ export function EditProductModal({ item, onClose, onSuccess }: EditProductModalP
 
     setLoading(true)
 
-    // Aquí llamamos a la acción con el emoji y la ubicación
     const res = await editItemAction(item.id, {
       name: name.trim(),
       category,
-      location, // <-- Enviamos la ubicación a la base de datos
+      location,
       unit,
       min_threshold: Number(minThreshold),
       emoji: selectedEmoji 
@@ -150,19 +140,14 @@ export function EditProductModal({ item, onClose, onSuccess }: EditProductModalP
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 px-3.5 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-inner transition-all cursor-pointer"
               >
-                <option value="Despensa" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Despensa</option>
-                <option value="Lácteos" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Lácteos</option>
-                <option value="Carnes" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Carnes</option>
-                <option value="Frutas y Verduras" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Frutas y Verduras</option>
-                <option value="Limpieza" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Limpieza</option>
-                <option value="Aseo Personal" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Aseo Personal</option>
-                <option value="Bebidas" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Bebidas</option>
-                <option value="Mascotas" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Mascotas</option>
-                <option value="Otros" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Otros</option>
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat} className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">
+                    {cat}
+                  </option>
+                ))}
               </select>
             </div>
             
-            {/* Nuevo Select de Ubicación */}
             <div>
               <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
                 Ubicación
@@ -173,7 +158,9 @@ export function EditProductModal({ item, onClose, onSuccess }: EditProductModalP
                 className="w-full rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 px-3.5 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-inner transition-all cursor-pointer"
               >
                 {LOCATIONS.map((loc) => (
-                  <option key={loc} value={loc} className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">{loc}</option>
+                  <option key={loc} value={loc} className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">
+                    {loc}
+                  </option>
                 ))}
               </select>
             </div>
@@ -189,13 +176,11 @@ export function EditProductModal({ item, onClose, onSuccess }: EditProductModalP
                 onChange={(e) => setUnit(e.target.value)}
                 className="w-full rounded-xl bg-white/50 dark:bg-slate-950/50 border border-black/10 dark:border-white/10 px-3.5 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-inner transition-all cursor-pointer"
               >
-                <option value="unidades" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Unidades</option>
-                <option value="litros" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Litros</option>
-                <option value="kg" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Kilos</option>
-                <option value="gramos" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Gramos</option>
-                <option value="paquetes" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Paquetes</option>
-                <option value="latas" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Latas</option>
-                <option value="botellas" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">Botellas</option>
+                {UNITS.map((u) => (
+                  <option key={u.value} value={u.value} className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">
+                    {u.label}
+                  </option>
+                ))}
               </select>
             </div>
 
