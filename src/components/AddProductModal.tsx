@@ -25,6 +25,17 @@ const CATEGORIES = [
   'Otros'
 ]
 
+// Nuevas ubicaciones
+const LOCATIONS = [
+  'Despensa',
+  'Refrigerador',
+  'Congelador',
+  'Baño',
+  'Limpieza',
+  'Bodega',
+  'Otro'
+]
+
 const UNITS = [
   { value: 'uds', label: 'Unidades (uds)' },
   { value: 'kg', label: 'Kilogramos (kg)' },
@@ -41,15 +52,14 @@ export function AddProductModal({ householdId, onClose, onSuccess }: AddProductM
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState('')
   const [category, setCategory] = useState('Despensa')
+  const [location, setLocation] = useState('Despensa') // <-- Nuevo estado
   const [currentQuantity, setCurrentQuantity] = useState('1')
   const [minThreshold, setMinThreshold] = useState('1')
   const [unit, setUnit] = useState('uds')
   
-  // Nuevos estados para el selector de emojis
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null)
   const [showPicker, setShowPicker] = useState(false)
 
-  // El emoji que se muestra es el seleccionado manualmente, o el adivinado por tu motor, o la caja por defecto
   const displayEmoji = selectedEmoji || getProductEmoji(name, category)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -69,10 +79,11 @@ export function AddProductModal({ householdId, onClose, onSuccess }: AddProductM
         household_id: householdId,
         name: name.trim(),
         category,
+        location, // <-- Guardamos la ubicación
         current_quantity: parseFloat(currentQuantity) || 0,
         min_threshold: parseFloat(minThreshold) || 0,
         unit,
-        emoji: selectedEmoji, // <-- Guardamos el emoji personalizado si existe
+        emoji: selectedEmoji,
         last_updated_by: user?.id || null
       })
 
@@ -115,7 +126,6 @@ export function AddProductModal({ householdId, onClose, onSuccess }: AddProductM
               Nombre del producto
             </label>
             <div className="relative flex items-center gap-2">
-              {/* Botón interactivo del Emoji */}
               <button
                 type="button"
                 onClick={() => setShowPicker(!showPicker)}
@@ -135,7 +145,6 @@ export function AddProductModal({ householdId, onClose, onSuccess }: AddProductM
                 required
               />
 
-              {/* Menú flotante de Emoji Picker */}
               {showPicker && (
                 <div className="absolute top-14 left-0 z-50 animate-in fade-in zoom-in-95 duration-200">
                   <div className="fixed inset-0" onClick={() => setShowPicker(false)} />
@@ -157,19 +166,37 @@ export function AddProductModal({ householdId, onClose, onSuccess }: AddProductM
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
-              Categoría
-            </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-xl bg-slate-100/80 dark:bg-slate-950/80 border border-black/5 dark:border-white/10 px-3.5 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-            >
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+                Categoría
+              </label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full rounded-xl bg-slate-100/80 dark:bg-slate-950/80 border border-black/5 dark:border-white/10 px-3.5 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              >
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Nuevo Select de Ubicación */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+                Ubicación
+              </label>
+              <select
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="w-full rounded-xl bg-slate-100/80 dark:bg-slate-950/80 border border-black/5 dark:border-white/10 px-3.5 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              >
+                {LOCATIONS.map((loc) => (
+                  <option key={loc} value={loc}>{loc}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
