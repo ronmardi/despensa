@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { FooterCredit } from '@/components/FooterCredit'
 import { Loader2, Fingerprint } from 'lucide-react'
@@ -34,7 +35,7 @@ export default function LoginPage() {
     }
   }
 
-  // Nueva función para inicio de sesión biométrico (Passkey)
+  // Inicio de sesión biométrico (Passkey) sin tipos `any`
   const handlePasskeyLogin = async () => {
     setLoading(true)
     setErrorMsg('')
@@ -43,20 +44,20 @@ export default function LoginPage() {
       const { data, error } = await supabase.auth.signInWithPasskey()
       if (error) throw error
       
-      // Si la autenticación biométrica es exitosa, redirigimos
       if (data?.user) {
         router.push('/pantry')
         router.refresh()
       }
-    } catch (err: any) {
-      setErrorMsg('No se pudo iniciar sesión con huella/FaceID.')
+    } catch (err: unknown) {
+      const error = err as Error
+      setErrorMsg(error.message || 'No se pudo iniciar sesión con huella/FaceID.')
       console.error(err)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoading(true)
     setErrorMsg('')
@@ -97,17 +98,19 @@ export default function LoginPage() {
         {/* Contenedor Principal Liquid Glass */}
         <div className={`relative rounded-3xl p-8 text-center ${glass3dClass}`}>
           
-          {/* Botón de tema en la esquina superior derecha del cuadro */}
+          {/* Botón de tema */}
           <div className="absolute top-4 right-4 z-20">
             <ThemeToggle />
           </div>
 
           <div className="flex flex-col items-center mb-6">
-            {/* Logo oficial integrado */}
+            {/* Logo usando next/image */}
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-md border border-white/60 dark:border-slate-700/60 p-2.5 mb-3 shadow-md">
-              <img 
+              <Image 
                 src="/icon.svg" 
                 alt="Mi Despensa Logo" 
+                width={64}
+                height={64}
                 className="h-full w-full object-contain filter drop-shadow-sm" 
               />
             </div>
