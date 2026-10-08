@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { X, Loader2, Plus, Package } from 'lucide-react'
 import { toast } from 'sonner'
 import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react'
 import { getProductEmoji } from '@/lib/utils/emoji'
+import { CATEGORIES, LOCATIONS, UNITS } from '@/lib/constants'
+import { addProductAction } from '@/app/(dashboard)/pantry/actions'
 
 interface AddProductModalProps {
   householdId: string
@@ -13,49 +14,14 @@ interface AddProductModalProps {
   onSuccess: () => void
 }
 
-const CATEGORIES = [
-  'Despensa',
-  'Lácteos y Huevos',
-  'Frutas y Verduras',
-  'Carnes y Pescados',
-  'Bebidas',
-  'Limpieza',
-  'Aseo Personal',
-  'Mascotas',
-  'Otros'
-]
-
-// Nuevas ubicaciones
-const LOCATIONS = [
-  'Despensa',
-  'Refrigerador',
-  'Congelador',
-  'Baño',
-  'Limpieza',
-  'Bodega',
-  'Otro'
-]
-
-const UNITS = [
-  { value: 'uds', label: 'Unidades (uds)' },
-  { value: 'kg', label: 'Kilogramos (kg)' },
-  { value: 'gr', label: 'Gramos (gr)' },
-  { value: 'lt', label: 'Litros (lt)' },
-  { value: 'ml', label: 'Mililitros (ml)' },
-  { value: 'bot', label: 'Botellas (bot)' },
-  { value: 'caja', label: 'Cajas' },
-  { value: 'paq', label: 'Paquetes (paq)' },
-]
-
 export function AddProductModal({ householdId, onClose, onSuccess }: AddProductModalProps) {
-  const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState('')
-  const [category, setCategory] = useState('Despensa')
-  const [location, setLocation] = useState('Despensa') // <-- Nuevo estado
+  const [category, setCategory] = useState<string>(CATEGORIES[0])
+  const [location, setLocation] = useState<string>(LOCATIONS[0])
   const [currentQuantity, setCurrentQuantity] = useState('1')
   const [minThreshold, setMinThreshold] = useState('1')
-  const [unit, setUnit] = useState('uds')
+  const [unit, setUnit] = useState<string>(UNITS[0].value)
   
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null)
   const [showPicker, setShowPicker] = useState(false)
@@ -71,24 +37,19 @@ export function AddProductModal({ householdId, onClose, onSuccess }: AddProductM
 
     setLoading(true)
 
-    const { data: { user } } = await supabase.auth.getUser()
+    // Llamada segura al Server Action
+    const res = await addProductAction({
+      name: name.trim(),
+      category,
+      location,
+      quantity: parseFloat(currentQuantity) || 0,
+      minThreshold: parseFloat(minThreshold) || 0,
+      unit,
+      emoji: selectedEmoji
+    })
 
-    const { error } = await supabase
-      .from('items')
-      .insert({
-        household_id: householdId,
-        name: name.trim(),
-        category,
-        location, // <-- Guardamos la ubicación
-        current_quantity: parseFloat(currentQuantity) || 0,
-        min_threshold: parseFloat(minThreshold) || 0,
-        unit,
-        emoji: selectedEmoji,
-        last_updated_by: user?.id || null
-      })
-
-    if (error) {
-      toast.error('Error al agregar el producto', { description: error.message })
+    if (!res.success) {
+      toast.error('Error al agregar el producto', { description: res.error })
     } else {
       toast.success(`"${name.trim()}" agregado a la despensa`)
       onSuccess()
@@ -182,7 +143,6 @@ export function AddProductModal({ householdId, onClose, onSuccess }: AddProductM
               </select>
             </div>
             
-            {/* Nuevo Select de Ubicación */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
                 Ubicación
