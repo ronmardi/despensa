@@ -6,8 +6,12 @@ import Link from 'next/link'
 import { ShoppingCart, ArrowLeft, Share2, Check, Circle, Plus, Minus, Loader2, Sparkles, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { toPng } from 'html-to-image'
-import { updateItemQuantityAction } from '../pantry/actions'
-import { addExtraItemAction, toggleExtraItemAction, deleteExtraItemAction } from './actions'
+import { 
+  completePurchasesAction, 
+  addExtraItemAction, 
+  toggleExtraItemAction, 
+  deleteExtraItemAction 
+} from './actions'
 import { formatUnit } from '@/lib/utils/format'
 import { getProductEmoji } from '@/lib/utils/emoji'
 
@@ -32,12 +36,12 @@ export default function ShoppingListPage() {
   const supabase = createClient()
   const listRef = useRef<HTMLDivElement>(null)
   
-  // Estados para Inventario (Opción A)
+  // Estados para Inventario
   const [items, setItems] = useState<PantryItem[]>([])
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set())
   const [buyQuantities, setBuyQuantities] = useState<Record<string, number>>({})
   
-  // Estados para Ítems Manuales (Opción B)
+  // Estados para Ítems Manuales
   const [extras, setExtras] = useState<ShoppingExtra[]>([])
   const [newExtra, setNewExtra] = useState('')
   const [addingExtra, setAddingExtra] = useState(false)
@@ -50,7 +54,10 @@ export default function ShoppingListPage() {
   const loadShoppingList = useCallback(async () => {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
 
     const { data: members } = await supabase
       .from('household_members')
@@ -72,7 +79,6 @@ export default function ShoppingListPage() {
 
         const initialQuantities: Record<string, number> = {}
         itemsToBuy.forEach(item => {
-          // OPCIÓN A: Matemática Inteligente basada en la cantidad ideal
           const deficit = item.ideal_quantity > item.current_quantity 
             ? item.ideal_quantity - item.current_quantity 
             : (item.min_threshold - item.current_quantity) + 1
@@ -97,7 +103,19 @@ export default function ShoppingListPage() {
   }, [supabase])
 
   useEffect(() => {
-    loadShoppingList()
+    let isMounted = true
+
+    const initList = async () => {
+      if (isMounted) {
+        await loadShoppingList()
+      }
+    }
+
+    initList()
+
+    return () => {
+      isMounted = false
+    }
   }, [loadShoppingList])
 
   const groupedItems = useMemo(() => {
@@ -140,7 +158,7 @@ export default function ShoppingListPage() {
       setNewExtra('')
       loadShoppingList()
     } else {
-      toast.error('Error al agregar el ítem extra')
+      toast.error('Error al agregar el ítem extra', { description: res.error })
     }
     setAddingExtra(false)
   }
@@ -195,7 +213,7 @@ export default function ShoppingListPage() {
         link.click()
         toast.success('Imagen descargada')
       }
-    } catch (err: any) {
+    } catch (_err) {
       toast.error('No se pudo generar la imagen')
     } finally {
       setSharing(false)
@@ -206,31 +224,23 @@ export default function ShoppingListPage() {
     if (checkedItems.size === 0) return
     setUpdating(true)
 
-    let successCount = 0
-    let failCount = 0
-
-    for (const id of Array.from(checkedItems)) {
+    const purchasesToComplete = Array.from(checkedItems).map(id => {
       const item = items.find(i => i.id === id)
-      if (!item) continue
-
-      const addAmount = buyQuantities[id] || 1
-      const res = await updateItemQuantityAction(id, item.name, addAmount)
-      
-      if (res.success) {
-        successCount++
-      } else {
-        failCount++
+      return {
+        id,
+        name: item?.name || '',
+        added_qty: buyQuantities[id] || 1
       }
-    }
+    }).filter(p => p.name)
 
-    if (successCount > 0) {
-      toast.success(`${successCount} producto(s) agregados a la despensa`)
+    const res = await completePurchasesAction(purchasesToComplete)
+
+    if (res.success) {
+      toast.success(`${purchasesToComplete.length} producto(s) agregados a la despensa`)
       setItems(prev => prev.filter(item => !checkedItems.has(item.id)))
       setCheckedItems(new Set())
-    }
-
-    if (failCount > 0) {
-      toast.error(`Hubo un error al actualizar ${failCount} producto(s)`)
+    } else {
+      toast.error(res.error || 'Hubo un error al actualizar los productos')
     }
 
     setUpdating(false)
@@ -267,7 +277,7 @@ export default function ShoppingListPage() {
         </button>
       </header>
 
-      {/* Input Rápido para Compras Extras (Opción B) */}
+      {/* Input Rápido para Compras Extras */}
       <form onSubmit={handleAddExtra} className="mb-6 relative flex items-center shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.3)] rounded-2xl">
         <div className="absolute left-3.5 text-gray-400">
           <Plus size={18} />
