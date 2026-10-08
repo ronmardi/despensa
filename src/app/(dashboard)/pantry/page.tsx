@@ -18,7 +18,7 @@ interface PantryItem {
   id: string
   name: string
   category: string
-  location?: string // <-- Nueva propiedad agregada
+  location?: string
   current_quantity: number
   min_threshold: number
   unit: string
@@ -34,6 +34,7 @@ function PantryContent() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('Todas')
+  const [selectedLocation, setSelectedLocation] = useState('Todas')
   const [householdId, setHouseholdId] = useState<string | null>(null)
   const [householdName, setHouseholdName] = useState<string>('Mi Despensa')
   const [userEmail, setUserEmail] = useState<string>('')
@@ -124,15 +125,25 @@ function PantryContent() {
     return ['Todas', ...uniqueCats]
   }, [items])
 
+  const locations = useMemo(() => {
+    const uniqueLocs = Array.from(new Set(items.map((item) => item.location || 'Despensa').filter(Boolean)))
+    return ['Todas', ...uniqueLocs]
+  }, [items])
+
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase())
       const matchesCategory =
         selectedCategory === 'Todas' ||
         item.category.toLowerCase() === selectedCategory.toLowerCase()
-      return matchesSearch && matchesCategory
+      const itemLoc = item.location || 'Despensa'
+      const matchesLocation =
+        selectedLocation === 'Todas' ||
+        itemLoc.toLowerCase() === selectedLocation.toLowerCase()
+      
+      return matchesSearch && matchesCategory && matchesLocation
     })
-  }, [items, searchTerm, selectedCategory])
+  }, [items, searchTerm, selectedCategory, selectedLocation])
 
   const handleQuantityChange = (id: string, delta: number) => {
     const currentItem = items.find((i) => i.id === id)
@@ -292,6 +303,7 @@ function PantryContent() {
 
       {!loading && items.length > 0 && (
         <div className="mb-6 space-y-3">
+          {/* Campo de Búsqueda */}
           <div className="relative">
             <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
@@ -311,7 +323,8 @@ function PantryContent() {
             )}
           </div>
 
-          <div className="flex gap-2 overflow-x-auto py-2 px-1 -mx-1 no-scrollbar items-center mask-[linear-gradient(to_right,black_88%,transparent)]">
+          {/* Filtro por Categorías */}
+          <div className="flex gap-2 overflow-x-auto py-1 px-1 -mx-1 no-scrollbar items-center mask-[linear-gradient(to_right,black_88%,transparent)]">
             {categories.map((cat) => {
               const isActive = selectedCategory.toLowerCase() === cat.toLowerCase()
               return (
@@ -329,6 +342,31 @@ function PantryContent() {
               )
             })}
           </div>
+
+          {/* Filtro por Ubicación */}
+          {locations.length > 1 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-1 -mx-1 no-scrollbar mask-[linear-gradient(to_right,black_88%,transparent)]">
+              <span className="text-gray-400 dark:text-gray-500 pl-1 shrink-0 flex items-center gap-1 text-xs font-bold">
+                <MapPin size={12} />
+              </span>
+              {locations.map((loc) => {
+                const isActive = selectedLocation.toLowerCase() === loc.toLowerCase()
+                return (
+                  <button
+                    key={loc}
+                    onClick={() => setSelectedLocation(loc)}
+                    className={`shrink-0 rounded-lg px-3 py-1 text-[11px] font-semibold capitalize transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 font-bold shadow-xs'
+                        : `${glass3dClass} text-gray-600 dark:text-gray-400 hover:bg-white/80 dark:hover:bg-slate-800`
+                    }`}
+                  >
+                    {loc}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -351,6 +389,7 @@ function PantryContent() {
             onClick={() => {
               setSearchTerm('')
               setSelectedCategory('Todas')
+              setSelectedLocation('Todas')
             }}
             className="mt-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 transition-all cursor-pointer"
           >
@@ -384,7 +423,6 @@ function PantryContent() {
                     )}
                   </div>
                   
-                  {/* AQUÍ ESTÁ LA NUEVA ETIQUETA DE UBICACIÓN */}
                   <div className="flex items-center gap-2 mt-1 overflow-hidden">
                     <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 capitalize truncate shrink-0">
                       {item.category}
